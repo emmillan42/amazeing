@@ -10,17 +10,19 @@ from dataclasses import dataclass
 #     """Error en el fichero de configuración."""
 #     pass
 
+Cell = tuple[int, int]
 
-@dataclass()
+@dataclass(frozen=True)
 class Config():
     width: int
     height: int
-    entry: tuple[int, int]
-    exit: tuple[int, int]
+    entry: Cell
+    exit: Cell
     output_file: str
     perfect: bool
     seed: int | None = None
     algorithm: str = "backtracker"
+    pattern: str | None = "42"
 
 
 def _parse_int(val_str: str) -> int:
@@ -43,7 +45,7 @@ def _parse_bool(val_str: str) -> bool:
         raise ConfigError("Perfect debe ser un booleano")
 
 
-def _parse_coords(val_str: str) -> tuple[int, int]:
+def _parse_coords(val_str: str) -> Cell:
     try:
         split_val = val_str.split(',')
         if len(split_val) != 2:
@@ -101,26 +103,21 @@ def parse_config(filepath: str) -> Config:
     if entry == exit:
         raise ConfigError("Misma coordenada de entrada y salida")
 
-    if raw_data.get("SEED"):
-        seed = _parse_int(raw_data["SEED"])
-        return Config(
-            width=width,
-            height=height,
-            entry=entry,
-            exit=exit,
-            output_file=raw_data["OUTPUT_FILE"],
-            perfect=perfect,
-            seed=seed,
-        )
-    else:
-        return Config(
-            width=width,
-            height=height,
-            entry=entry,
-            exit=exit,
-            output_file=raw_data["OUTPUT_FILE"],
-            perfect=perfect,
-        )
+    seed = _parse_int(raw_data["SEED"]) if raw_data.get("SEED") else None
+    algorithm = raw_data.get("ALGORITHM", "backtracker")
+    pattern = raw_data.get("PATTERN") if "PATTERN" in raw_data else "42"
+    
+    return Config(
+        width=width,
+        height=height,
+        entry=entry,
+        exit=exit,
+        output_file=raw_data["OUTPUT_FILE"],
+        perfect=perfect,
+        seed=seed,
+        algorithm=algorithm,
+        pattern=pattern,
+    )
 
 
 # data_config = parse_config('test.txt')
