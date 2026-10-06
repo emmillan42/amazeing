@@ -5,7 +5,9 @@ Registro de decisiones arquitectónicas (ADR) de A-Maze-ing.
 **Regla de este fichero: solo se añade al final.** Una decisión escrita
 no se reescribe ni se borra nunca, ni cuando se demuestra equivocada:
 si cambia, se añade una ADR nueva que la sustituye y se marca la
-antigua como *Sustituida por ADR-XXX*. Un fichero al que solo se añade
+antigua como *Sustituida por ADR-XXX*. Lo único que se actualiza de una
+ADR ya escrita es su línea de **Estado**, anotando la fecha del
+cambio. Un fichero al que solo se añade
 no se desincroniza jamás, y el histórico es justo lo que se pregunta en
 la defensa.
 
@@ -13,7 +15,7 @@ Lo que **no** va aquí: decisiones aún abiertas. Esas viven en la
 sección "Pendiente de cerrar" de `ARCHITECTURE.md`, que sí se
 reescribe entera. Una decisión entra aquí el día que se cierra.
 
-Estados: `Aceptada`, `Propuesta` (falta que la confirme el compañero),
+Estados: `Aceptada`, `Propuesta` (falta que la confirme la pareja),
 `Sustituida por ADR-XXX`.
 
 ---
@@ -207,7 +209,7 @@ Esa parte sigue abierta, ver `ARCHITECTURE.md`.
 
 ## ADR-008 — El paquete vive en la raíz, no en `src/`
 
-**Fecha:** 2026-09-28 · **Estado:** Propuesta
+**Fecha:** 2026-09-28 · **Estado:** Aceptada (confirmada 2026-09-29)
 
 **Contexto.** El plan inicial situaba el paquete reutilizable en
 `src/mazegen/`, que es el layout recomendado hoy para paquetes de
@@ -223,9 +225,135 @@ con `ModuleNotFoundError` mientras no se instale el paquete, y el
 subject define esa línea como *la* forma de ejecutar el programa: no
 podemos depender de que el evaluador haga `make install` primero.
 
-**Consecuencias.** El programa arranca sin instalar nada. El wheel sale
-idéntico, solo cambia la configuración de `pyproject.toml`. La frontera
-entre lo reutilizable y lo que no lo es la sigue marcando el límite del
-paquete, que es el argumento que hay que defender, no la carpeta `src`.
-Revertirlo son dos pasos: mover la carpeta y añadir `pip install -e .`
-al Makefile.
+**Consecuencias.** El programa arranca sin instalar nada, que es lo que
+comprueba el apartado *Standard usage* de la hoja de evaluación. El
+wheel sale idéntico, solo cambia la configuración de `pyproject.toml`.
+La frontera entre lo reutilizable y lo que no lo es la sigue marcando
+el límite del paquete, que es el argumento que hay que defender, no la
+carpeta `src`. Revertirlo son dos pasos: mover la carpeta y añadir
+`pip install -e .` al Makefile.
+
+Contrapartida que hay que conocer: ejecutando desde la raíz del repo,
+`import mazegen` encuentra primero la carpeta local, nunca el paquete
+instalado. La hoja de evaluación pide instalar el wheel en un virtualenv
+distinto y probarlo con `a_maze_ing.py`; para que esa prueba demuestre
+algo hay que hacerla **fuera del repositorio**, copiando `a_maze_ing.py`
+y el fichero de configuración a otra carpeta. Va documentado en el
+README y es un paso del ensayo de defensa.
+
+---
+
+## ADR-009 — El fichero de salida guarda el primer laberinto
+
+**Fecha:** 2026-09-28 · **Estado:** Aceptada
+
+**Contexto.** La hoja de evaluación dice, literalmente, que hay que
+verificar que *el primer laberinto generado y mostrado* está también
+guardado en el fichero de salida, y que la secuencia del camino más
+corto del fichero coincide con la representación visual. El menú, en
+cambio, permite regenerar tantas veces como se quiera.
+
+**Decisión.** El fichero de salida se escribe una sola vez, justo
+después de la primera generación. Regenerar desde el menú **no** lo
+reescribe. Se añade una entrada de menú explícita para guardar el
+laberinto que está en pantalla, que cuenta como interacción extra de
+las que el subject permite.
+
+**Alternativas descartadas.** Reescribir el fichero en cada
+regeneración. Parece lo natural, pero deja el fichero apuntando al
+último laberinto: si el evaluador regenera dos veces y después abre el
+fichero para compararlo con lo que vio al arrancar, no coincide, y ese
+apartado de la hoja se marca como fallado.
+
+**Consecuencias.** El fichero y la primera pantalla siempre concuerdan.
+El evaluador puede además guardar cualquier laberinto posterior si
+quiere validarlo con el script de análisis, sin que eso rompa la
+garantía anterior. `Menu._regenerate` no toca disco; `Menu._save` sí.
+
+---
+
+## ADR-010 — Licencia MIT
+
+**Fecha:** 2026-09-29 · **Estado:** Aceptada
+
+**Contexto.** El subject exige un `LICENSE.md` propio en la raíz, con
+una licencia que permita explícitamente la reutilización y la
+distribución del generador por los proyectos posteriores que se apoyen
+en él. Elegirla forma parte del ejercicio.
+
+**Decisión.** MIT.
+
+**Alternativas descartadas.** Apache-2.0 añade una concesión expresa de
+patentes y obligaciones de notificación de cambios: pensada para
+proyectos corporativos, aquí solo añade texto que habría que saber
+defender. BSD-3-Clause es prácticamente equivalente a MIT con una
+cláusula extra sobre el uso del nombre, sin ninguna ventaja para este
+caso. Las licencias copyleft (GPL) quedan descartadas de raíz: obligan
+al proyecto que reutilice `mazegen` a adoptar la misma licencia, que es
+justo lo contrario de lo que pide el subject.
+
+**Consecuencias.** Cuatro párrafos de texto, permisiva, universalmente
+reconocida, y la más fácil de justificar en la defensa: permite reusar,
+modificar y redistribuir con la única condición de conservar el aviso
+de copyright. El año y los dos nombres van en el fichero.
+
+---
+
+## ADR-011 — Se mantiene la fuente 3x5: el bonus es alcanzable con ella
+
+**Fecha:** 2026-09-29 · **Estado:** Aceptada · Cierra el punto abierto
+de ADR-007
+
+**Contexto.** ADR-007 dejó en el aire si los 3 callejones que los
+huecos del "4" y del "2" producen inevitablemente impedían el bonus
+`--max-dead-ends 0`, y si por tanto había que pasar a una fuente de
+trazo grueso con contadores de 2 celdas.
+
+**Decisión.** Se mantiene la fuente 3x5. No hace falta fuente gruesa.
+
+**Justificación medida.** El analizador oficial clasifica los
+callejones en dos grupos: *real* cuando alguno de sus muros cerrados
+podría abrirse hacia una celda normal, y *enclosed* cuando todos dan a
+una celda totalmente cerrada del "42" o al borde exterior. La opción
+`--max-dead-ends` solo limita los reales. Los 3 callejones de nuestros
+glifos tienen un único vecino no bloqueado, el mismo por el que
+conectan, así que caen siempre en la categoría tolerada.
+
+Comprobado con un prototipo desechable (árbol de expansión más braiding
+ingenuo) y el analizador oficial, en 9x7, 11x9, 15x11, 20x15, 30x20 y
+41x25: en los seis, `0 real + 3 enclosed by the '42' (tolerated)` y
+veredicto *bonus-grade (perfectly braided)*.
+
+**Consecuencias.** El mínimo se queda en 9x7 en lugar de irse a 15x12.
+El braiding solo persigue callejones **reales**: intentar abrir los del
+patrón rompería el dibujo, así que `braiding.dead_ends()` los excluye
+por construcción. `validator.count_dead_ends()` devuelve la misma
+pareja `(real, enclosed)` que el analizador, para poder comparar
+resultados sin traducir nada.
+
+---
+
+## ADR-012 — Clave `PATTERN` en el fichero de configuración, no `DISPLAY`
+
+**Fecha:** 2026-09-29 · **Estado:** Aceptada
+
+**Contexto.** El subject permite añadir claves opcionales. `SEED` y
+`ALGORITHM` estaban claras; faltaba decidir la tercera, que se barajaba
+como `DISPLAY`.
+
+**Decisión.** La tercera clave opcional es `PATTERN`, con valor `42`
+por defecto y vacío para no dibujar nada. `DISPLAY` se descarta.
+
+**Alternativas descartadas.** `DISPLAY` seleccionaría el modo de
+representación, pero tras ADR-005 solo existe uno: sería una clave con
+un único valor válido, es decir, ruido que hay que documentar, parsear
+y defender sin que aporte nada. El modo de visualización que sí varía,
+el color, se cambia en caliente desde el menú y no necesita fichero.
+
+**Consecuencias.** `PATTERN` cuesta tres líneas en el parser y hace
+demostrable en la defensa que `pattern.py` es genérico: los glifos
+viven en un diccionario y el texto es un parámetro. Permite además
+probar laberintos por debajo de 9x7 sin tocar código. Un carácter sin
+glifo es un `ConfigError` explícito, no un "no cabe" silencioso: si
+alguien escribe `PATTERN=7`, el programa lo dice en lugar de generar un
+laberinto sin dibujo.
