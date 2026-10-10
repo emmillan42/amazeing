@@ -1,0 +1,4 @@
+# flake8 does not skip virtual environments by default: without this,
+# `flake8 .` would lint every package installed in .venv.
+[flake8]
+extend-exclude = .venv,venv,env,build,dist

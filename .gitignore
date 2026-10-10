@@ -1,0 +1,35 @@
+# Bytecode and tool caches
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Packaging scratch space
+build/
+dist/
+*.egg-info/
+
+# The reusable package must be committed at the repository root
+# (subject, chapter VI).  Re-include it explicitly, so that a global
+# gitignore excluding *.whl cannot hide it.
+!/mazegen-*.whl
+!/mazegen-*.tar.gz
+
+# Generated at run time from OUTPUT_FILE in config.txt
+maze.txt
+
+# Analysis script provided by the intra: not our code
+/maze_analyzer.py
+
+# Editors and operating systems
+.vscode/
+.idea/
+*.swp
+.DS_Store

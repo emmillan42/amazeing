@@ -357,3 +357,143 @@ probar laberintos por debajo de 9x7 sin tocar código. Un carácter sin
 glifo es un `ConfigError` explícito, no un "no cabe" silencioso: si
 alguien escribe `PATTERN=7`, el programa lo dice en lugar de generar un
 laberinto sin dibujo.
+
+---
+
+## ADR-013 — Herramientas en `.venv` con versiones fijadas; lint configurado en `.flake8` y `mypy.ini`
+
+**Fecha:** 2026-10-10 · **Estado:** Propuesta (falta que Lucas confirme
+el punto que afecta a `pyproject.toml`)
+
+**Contexto.** El subject exige que `make lint` ejecute literalmente
+`flake8 .` y `mypy .` con unos flags concretos, recomienda un entorno
+virtual, y la hoja de evaluación pide reconstruir el paquete desde las
+fuentes. El programa, en cambio, solo usa la biblioteca estándar.
+
+**Decisión.** Las herramientas de desarrollo (`flake8`, `mypy`,
+`build`, `pytest`) viven en `.venv`, instaladas por `make install`
+desde `requirements-dev.txt` con versiones exactas. `run` y `debug`
+usan el `python3` del sistema, sin venv. Las exclusiones de lint van en
+ficheros propios de cada herramienta, `.flake8` y `mypy.ini`. `make
+test` llama a `python -m pytest`, no a `pytest`.
+
+**Medido antes de decidir.** Con un `.venv` dentro del repo, `flake8 .`
+analizó todo lo instalado y devolvió 62.473 avisos: flake8 no excluye
+los entornos virtuales por defecto. `mypy .` sí se salta `.venv`,
+porque ignora las carpetas ocultas, pero no `venv/` ni `build/`, y tras
+construir el wheel `build/lib/mazegen/` es una segunda copia del
+paquete que para la comprobación con un error de módulo duplicado.
+`pytest` a secas no encuentra `mazegen` porque no pone la raíz del repo
+en `sys.path`; `python -m pytest` sí.
+
+**Alternativas descartadas.**
+- *Exclusiones como flags en el Makefile.* El comando tiene que ser
+  `flake8 .` tal cual, y un evaluador que lo lance a mano no pasaría
+  por el Makefile.
+- *Configuración en `pyproject.toml`.* flake8 no lee ese fichero, y el
+  `pyproject.toml` es de B6.
+- *Configuración en `setup.cfg`.* Para mypy es el fichero de menor
+  prioridad: una sección `[tool.mypy]` añadida más tarde lo anularía
+  sin avisar.
+- *Versiones sin fijar.* Un cambio de versión de flake8 o mypy puede
+  cambiar el veredicto, y el de la máquina del evaluador es el que
+  cuenta.
+- *`run` desde el venv.* Haría depender la ejecución de `make install`,
+  justo lo que ADR-008 quiere evitar.
+
+**Consecuencias.** `make lint` da el mismo resultado en cualquier
+máquina, y sobre un clon recién hecho crea el venv él solo, porque
+depende del fichero marcador `.venv/.installed`. mypy lee `mypy.ini`
+antes que `pyproject.toml`, así que **el `pyproject.toml` no debe
+llevar sección `[tool.mypy]`**: se ignoraría sin aviso. `make install`
+necesita red y el módulo `venv` (paquete `python3-venv` en Debian y
+Ubuntu). `make clean` borra `build/` y `dist/` pero nunca el wheel de
+la raíz, y el `.gitignore` lo re-incluye con `!/mazegen-*.whl`, que
+gana incluso a un `.gitignore` global (probado). `maze_analyzer.py`
+queda en el `.gitignore` por ser código de la intra; pasa el lint, así
+que subirlo para B9 no rompe nada.
+
+---
+
+## ADR-014 — `config.txt` solo con comentarios de línea completa; opcionales comentadas
+
+**Fecha:** 2026-10-10 · **Estado:** Propuesta (falta que Lucas confirme
+que su parser lo acepta tal cual)
+
+**Contexto.** El `config.txt` por defecto es un entregable y lo primero
+que ejecuta el evaluador. El ejemplo de `ARCHITECTURE.md` §7 tenía
+comentarios al final de línea (`ALGORITHM=backtracker  # ...`), y el
+subject solo define como comentario las líneas que empiezan por `#`.
+
+**Decisión.** El fichero por defecto usa solo comentarios de línea
+completa y claves en mayúsculas, como la tabla del subject. Valores
+obligatorios: 20x15, `ENTRY=0,0`, `EXIT=19,14`, `OUTPUT_FILE=maze.txt`,
+`PERFECT=False`. Las tres claves opcionales van comentadas: `SEED=42`
+como ejemplo, y `ALGORITHM` y `PATTERN` con su valor por defecto.
+
+**Alternativas descartadas.**
+- *Comentarios al final de línea.* Si el parser no los recorta, el
+  valor leído incluye el comentario, el fichero por defecto da un
+  `ConfigError` y la nota es un 0. El fichero tiene que funcionar con
+  la lectura más estricta del subject, sea cual sea la de B1.
+- *`SEED=42` activa.* Cada ejecución daría el mismo laberinto, y la
+  primera impresión del evaluador sería que no es aleatorio. Comentada,
+  la reproducibilidad se prueba quitando una almohadilla, sin tocar
+  ningún otro fichero, que es lo que pide la hoja.
+- *`PERFECT=True` por defecto.* Funcionaría antes, sin esperar al
+  braiding, pero el subject presenta el modo jugable como el exigido
+  por defecto.
+
+**Consecuencias.** El fichero por defecto no depende de cómo trate B1
+los comentarios en línea; esa decisión sigue siendo suya.
+Descomentar `ALGORITHM` o `PATTERN` tal cual no cambia el resultado.
+Hasta que exista el braiding (A6), la configuración por defecto no se
+puede ejecutar de punta a punta: durante el desarrollo se usa una
+copia local con `PERFECT=True`.
+
+---
+
+## ADR-015 — `shortest_path` lanza `MazeError` si no hay camino; desempate N, E, S, O
+
+**Fecha:** 2026-10-10 · **Estado:** Aceptada
+
+**Contexto.** El contrato fijaba la firma
+`shortest_path(maze, start, goal) -> list[Cell]`, pero no qué ocurre
+cuando la meta es inalcanzable, ni cuál de varios caminos igual de
+cortos se devuelve. En modo jugable hay bucles, así que suele haber
+varios.
+
+**Decisión.** BFS con `deque` y un diccionario `parent` que sirve a la
+vez de conjunto de visitadas y de enlaces para reconstruir el camino.
+La búsqueda para en cuanto descubre la meta. Devuelve las celdas con
+`start` y `goal` incluidas, y `[start]` si son la misma celda. Lanza
+`MazeError` si una de las dos está fuera de la rejilla o bloqueada, o
+si no hay camino. Los vecinos se recorren en el orden del enum
+`Direction` (N, E, S, O), de modo que el desempate es determinista y
+el solver no recibe `rng`.
+
+**Alternativas descartadas.**
+- *Devolver `[]`.* No es ambiguo, porque `[start]` cubre el caso
+  `start == goal`, pero es silencioso: `solution_string()` daría una
+  cadena vacía, el writer escribiría una línea de camino vacía y nadie
+  lo notaría hasta comparar el fichero con la pantalla.
+- *Una subclase nueva, `NoPathError`.* Obligaría a tocar `errors.py`,
+  que es contrato compartido, sin que nadie necesite distinguir este
+  error de los demás.
+- *DFS.* Encuentra un camino, que solo coincide con el más corto en
+  modo perfecto.
+- *A\*.* También óptimo, pero más código que defender para una rejilla
+  sin pesos y pequeña.
+- *Guardar caminos completos en la cola.* Memoria cuadrática, frente a
+  un diccionario lineal.
+
+**Consecuencias.** En el pipeline el validador corre antes y ya
+garantiza la conectividad, así que el error de "sin camino" es una red
+de seguridad: si salta, es un bug, y `a_maze_ing.py` lo convierte en
+mensaje claro y código 1 en vez de en un fichero incorrecto. Misma
+semilla da mismo fichero, línea del camino incluida. Quien reutilice
+`mazegen` debe capturar `MazeError`, lo que va documentado en el
+README. Como el analizador no comprueba la línea del camino,
+`tests/test_solver.py` compara el resultado con un oráculo de fuerza
+bruta en 200 laberintos aleatorios con bucles; cambiar `popleft()` por
+`pop()`, es decir, convertir el BFS en un DFS, hace fallar 8 de ellos.

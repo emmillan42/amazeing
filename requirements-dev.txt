@@ -1,0 +1,7 @@
+# Development tools only: the program and the mazegen package have no
+# runtime dependencies.  Exact pins, so that `make lint` gives the same
+# verdict on every machine, including the evaluator's.
+flake8==7.4.1
+mypy==2.4.0
+build==1.6.1
+pytest==9.1.1

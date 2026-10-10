@@ -1,0 +1,27 @@
+# A-Maze-ing default configuration.
+#
+# One KEY=VALUE pair per line.  Lines starting with '#' are comments.
+# Keys are case-insensitive.  Coordinates are x,y: (0,0) is the
+# north-west corner, x grows eastwards and y southwards.
+
+# Mandatory keys
+WIDTH=20
+HEIGHT=15
+ENTRY=0,0
+EXIT=19,14
+OUTPUT_FILE=maze.txt
+PERFECT=False
+
+# Optional keys.  Remove the leading '#' to use them.
+#
+# SEED: any integer.  The same seed with the same configuration always
+# produces the same maze.  Without it, every run gives a new maze.
+# SEED=42
+#
+# ALGORITHM: backtracker (default) or kruskal.
+# ALGORITHM=backtracker
+#
+# PATTERN: text drawn with fully closed cells, 42 by default.  An empty
+# value (PATTERN=) draws nothing.  Only the characters that have a
+# glyph in mazegen/pattern.py are accepted.
+# PATTERN=42
