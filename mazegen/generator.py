@@ -8,6 +8,7 @@ from mazegen.braiding import braid, ensure_open
 from mazegen.errors import (
     GenerationError,
     InvalidGeometryError,
+    MazeError,
     PatternTooLargeError,
 )
 from mazegen.maze import Cell, Maze, validate_geometry
@@ -147,8 +148,8 @@ class MazeGenerator:
             The freshly generated maze, with its solution stored.
 
         Raises:
-            GenerationError: If a step of the pipeline is not
-                implemented yet, or if the result breaks an invariant.
+            GenerationError: If the carving algorithm is not
+                implemented yet, or if braiding or the validator fail.
                 In the second case it is a bug, and the message carries
                 what is needed to reproduce it.
         """
@@ -221,26 +222,26 @@ class MazeGenerator:
     def _braid(self, maze: Maze) -> None:
         """Turn the spanning tree into a playable board.
 
+        Braiding cannot fail on a carved maze: a dead end that can only
+        be opened into a 3x3 block gets the block broken instead.  Any
+        error here is therefore a bug, reported like a failure of the
+        validator.
+
+        The count of dead ends :func:`braid` returns is not checked:
+        the validator measures the board with its own code right after,
+        and a step does not grade its own work.
+
         Raises:
-            GenerationError: If the braiding is still a stub.
+            GenerationError: If braiding breaks one of its guarantees.
         """
         try:
             braid(maze, self._rng)
             ensure_open(maze, self._rng)
-        except NotImplementedError as error:
-            raise GenerationError(
-                "the playable mode (perfect=False) is not implemented "
-                "yet, use perfect=True"
-            ) from error
+        except MazeError as error:
+            raise self._internal_error(error) from error
 
     def _validate(self, maze: Maze) -> None:
         """Run the validator and make its failure reproducible.
-
-        A failure here is never the user's fault: the parameters were
-        all checked by the constructor.  The message says so and lists
-        what rebuilds the same maze: the arguments, seed included when
-        there is one, and which call to :meth:`generate` it was, since
-        each call draws from the same random generator.
 
         Raises:
             GenerationError: If the maze breaks an invariant.
@@ -248,10 +249,21 @@ class MazeGenerator:
         try:
             validate(maze, perfect=self._perfect)
         except GenerationError as error:
-            raise GenerationError(
-                f"internal error, please report it: {error} "
-                f"[{self._describe()}]"
-            ) from error
+            raise self._internal_error(error) from error
+
+    def _internal_error(self, error: MazeError) -> GenerationError:
+        """Wrap a failure that can only be a bug of the generator.
+
+        It is never the user's fault: the parameters were all checked
+        by the constructor.  The message says so and lists what rebuilds
+        the same maze: the arguments, seed included when there is one,
+        and which call to :meth:`generate` it was, since each call
+        draws from the same random generator.
+        """
+        return GenerationError(
+            f"internal error, please report it: {error} "
+            f"[{self._describe()}]"
+        )
 
     def _describe(self) -> str:
         """Return the arguments of this generator, for bug reports."""

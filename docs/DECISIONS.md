@@ -781,3 +781,204 @@ llegue A6. En A7b hay que decidir si el guardia de `_braid` se queda:
 con el braiding hecho es código muerto. Sin semilla, la receta de
 reproducción del mensaje queda incompleta, y el mensaje lo dice
 (`seed=unset`).
+
+---
+
+## ADR-021 — Braiding: un callejón atascado se fuerza abriendo y cerrando; esquinas y centro no son callejones reales; `braid` garantiza los bucles
+
+**Fecha:** 2026-10-30 · **Estado:** Aceptada · Cierra los dos puntos
+abiertos de ADR-019
+
+**Contexto.** A6, antes de escribir código. ADR-019 dejó dos preguntas:
+qué hace el braiding cuando todas las salidas posibles de un callejón
+crearían un 3x3, porque el analizador lo sigue contando como real, y
+qué significa `ensure_open`, porque con la conectividad garantizada
+toda celda libre ya tiene un lado abierto. Al medir apareció una
+tercera: nadie garantizaba los `MIN_LOOPS = 2` bucles que exige el
+validador.
+
+**Geometría del atasco.** En un 3x3 abierto, cada celda tiene abiertos
+todos sus muros interiores: 2 en las esquinas del bloque, 3 en los
+laterales, 4 en el centro. Un callejón pasa de grado 1 a grado 2 al
+abrirlo, así que solo puede completar un bloque del que sea esquina, y
+ese bloque tiene que tener ya abiertos sus otros 11 muros. Un árbol
+tiene como mucho 8 aristas dentro de un 3x3 (ADR-017): hacen falta al
+menos 3 aperturas del braiding en el mismo bloque. Las esquinas del
+laberinto, que no tienen "fuera", son el caso típico.
+
+**Decisión.**
+
+- *Callejón atascado.* Se abre igualmente y, en el bloque que completa,
+  se cierra un muro interior cuyas dos celdas tienen grado ≥ 3. No
+  desconecta, porque todo muro interior de un 3x3 abierto está en un
+  ciclo de 2x2; no crea callejones, porque las dos celdas se quedan con
+  grado ≥ 2; y siempre existe, porque los 4 radios del centro del bloque
+  cumplen. Balance +1 −1 aristas: los bucles no cambian.
+- *`ensure_open`.* Significa "las esquinas y el centro no son callejones
+  **reales**". Reales y no "grado ≥ 2", porque una celda clave encerrada
+  por el patrón no tiene arreglo y no debe lanzar nada. Usa el mismo
+  arreglo por celda que `braid`.
+- *Bucles.* Los garantiza `braid`, cuya docstring de módulo ya decía que
+  su trabajo es crear bucles y quitar callejones. Partiendo de un árbol,
+  cada apertura normal suma exactamente un bucle a `E − V + C` y cada
+  apertura forzada suma cero, así que los bucles se cuentan sin medir.
+  Si faltan, se abren muros al azar que respeten el 3x3. El umbral se
+  importa de `validator.MIN_LOOPS`: una sola fuente de verdad.
+
+**Medido antes de decidir.** Sobre una reconstrucción de los módulos
+(el backtracker reproduce el 20x15 de semilla 42 de ADR-019), con 11.530
+laberintos por tipo de árbol, de 3x3 a 15x15. Además del backtracker se
+usó un árbol tipo Kruskal, porque `braid` recibe "un laberinto
+tallado" y A8 traerá árboles con más hojas.
+
+- Atascos con un braiding que solo abre: 0 con el backtracker; 25 con
+  Kruskal, 22 de ellos en 3x3 (el 11 % de esas rejillas). Siempre
+  dejan exactamente 1 callejón real.
+- Con la apertura forzada: 0 callejones reales en los 23.060, todos
+  pasan `validate`, y 2.060 pasados por el analizador con
+  `--max-dead-ends 0` dan *bonus-grade*, de 3x3 a 41x25.
+- Bucles: sin la garantía, 60 laberintos del backtracker (3x4 el 10 %,
+  4x3, 4x4, 4x5, 4x6, 5x4, 3x6, 6x3, 8x3) y 5 de Kruskal acaban con un
+  solo bucle: un pasillo en serpiente cuyos extremos se unen. Sería un
+  *internal error*.
+- Celdas clave: con `braid(..., 0)` ninguna esquina ni el centro queda
+  como callejón. Con `max_dead_ends=2`, una de ellas sí en el 20 % de los
+  9x7, 18 % de los 15x11, 9,5 % de los 20x15 y 3 % de los 30x20.
+
+**Alternativas descartadas.**
+- *Rendirse ante el atasco.* El validador lo tolera, pero el bonus sería
+  falso en 1 de cada 9 rejillas 3x3 con Kruskal.
+- *Reintentar con otro orden.* Sin garantía de terminar bien y con un
+  número arbitrario de intentos.
+- *Procesar primero las esquinas.* Baja la probabilidad, no la anula.
+- *Cerrar un muro cualquiera del bloque.* Puede desconectar o crear un
+  callejón.
+- *`ensure_open` como "un lado abierto".* Siempre cierto: un test que no
+  puede fallar.
+- *Eliminar `ensure_open`.* `max_dead_ends` está en el contrato, y la
+  garantía que pide el subject no debe depender de ese parámetro.
+- *Los bucles en `ensure_open`, o midiendo con `count_loops`.* Lo
+  primero mezcla responsabilidades con un nombre que no lo dice; lo
+  segundo haría que `braid` y el validador compartieran la medida, que
+  es lo que ADR-017 evita.
+
+**Consecuencias.** ADR-003 se matiza sin sustituirse: el braiding puede
+cerrar un muro, pero solo dentro del 3x3 que acaba de completar y nunca
+con pérdida neta. En producción `ensure_open` no hace nada, y un test lo
+demuestra. De paso apareció un problema fuera de A6, medido solo en la
+reconstrucción: con `PATTERN=4`, el bloque de 3 de ancho pone el trazo
+del glifo en la columna central, y el analizador encuentra bloqueadas
+todas sus celdas "centro" en 4 de 5 tamaños. Queda en `ARCHITECTURE.md`
+§10 para verificarlo en el repo.
+
+---
+
+## ADR-022 — Implementación del braiding: consultas puras, una sola lista de callejones contada por aritmética
+
+**Fecha:** 2026-10-30 · **Estado:** Aceptada
+
+**Contexto.** A6. Con ADR-021 cerrada quedaba cómo escribir las cuatro
+funciones para que fueran correctas, baratas y defendibles.
+
+**Decisión.**
+
+- `would_open_3x3` es una consulta pura: no abre nada, trata el muro
+  candidato como abierto mientras mira los bloques. Cada muro se
+  escribe desde su celda oeste o norte, para compararlos con `==`.
+  Solo mira los bloques que contienen las dos celdas del muro: empiezan
+  en la menor coordenada o antes y acaban en la mayor o después, que
+  son 2 × 3 = 6 como mucho. El borde y las celdas del patrón no
+  necesitan caso propio: ningún bloque contiene un muro del borde, y un
+  bloque con una celda bloqueada siempre conserva uno de sus muros
+  cerrados. Una celda fuera de la rejilla lanza `MazeError`, porque
+  `neighbour` respondería sobre otra celda sin avisar.
+- `dead_ends` devuelve solo los reales, fila a fila. No filtra las
+  bloqueadas: tienen grado 0. No reutiliza nada del validador; los
+  tests usan cada uno como oráculo del otro.
+- `braid` calcula la lista de callejones una sola vez, la baraja y lleva
+  la cuenta restando 1, o 2 si el vecino también era callejón. Es
+  posible porque nunca aparece un callejón nuevo: abrir solo añade
+  salidas, y la apertura forzada solo cierra muros entre celdas de grado
+  ≥ 3.
+- Al elegir lado se prefiere un vecino que también sea callejón: un
+  muro arregla dos.
+- La apertura forzada completa **exactamente un** bloque: es el que
+  contiene la única salida del callejón y el muro que se abre. Lo
+  destapó una mutación que sobrevivía (quitar la recomprobación de los
+  demás bloques no rompía ningún test); se quitó ese código.
+- Si `_break_block` no encuentra muro que cerrar lanza `GenerationError`,
+  no `AssertionError`: un `assert` se puede desactivar y, si salta, es
+  un traceback.
+
+**Medido.** En 100x100, recontar los callejones tras cada apertura,
+como hacía el prototipo, cuesta 52 s; la versión final, 130 ms (5 ms en
+20x15). La preferencia por vecinos callejón baja los atascos con
+Kruskal de 68 a 25. Con todo dentro, 11.650 tableros del pipeline real
+(`perfect=False`, de 3x3 a 15x15 más 20x15, 30x20, 41x25 y 60x40) y
+otros 11.650 sobre árboles tipo Kruskal: 0 callejones reales y todos
+pasan `validate`. 865 por el analizador con `--max-dead-ends 0`: todos
+*bonus-grade*. En 100x100 el pipeline jugable tarda 876 ms frente a 355
+del perfecto; la parte mayor es el validador (236 ms).
+
+**Alternativas descartadas.**
+- *Abrir, mirar y restaurar.* Usaba `_set_wall`, que es privado, y si
+  el muro ya estaba abierto el `finally` lo cerraba: una consulta que
+  modifica el laberinto.
+- *Recontar con `dead_ends` tras cada apertura.* Cuadrático: los 52 s
+  de arriba.
+- *Reutilizar `validator._area_is_open`.* Un bug compartido pasaría los
+  dos filtros a la vez (ADR-017).
+
+**Consecuencias.** `tests/test_braiding.py` tiene 133 tests: los 12 muros
+del 3x3 uno a uno, los 66 pares, el validador como oráculo sobre 1.740
+muros (304 positivos), el atasco hecho a mano, árboles tipo Kruskal con
+un espía que exige que se llegue a la apertura forzada, y la
+contabilidad de bucles comparada con `count_loops`. De 9 mutaciones
+deliberadas, las 8 que son bugs las detecta algún test; la novena era
+el código sobrante. Todo verificado sobre la reconstrucción: falta
+repetirlo en el repo.
+
+---
+
+## ADR-023 — Los fallos del braiding son errores internos reproducibles; el generador no se fía del recuento de `braid`
+
+**Fecha:** 2026-10-30 · **Estado:** Aceptada · Cierra el punto de A7b
+de ADR-020
+
+**Contexto.** A7b. Con A6 hecha, el guardia de `_braid` que traducía
+`NotImplementedError` a *the playable mode is not implemented yet* ya
+no puede saltar. Y `braid` puede lanzar, aunque ADR-021 demuestre que
+no ocurre, un `GenerationError` sin la receta de reproducción que
+`_validate` añade.
+
+**Decisión.**
+
+- Fuera el guardia de `NotImplementedError` de `_braid`. El de `_carve`
+  se queda: Kruskal sigue siendo stub hasta A8.
+- `_braid` envuelve cualquier `MazeError` de `braid` o `ensure_open`
+  igual que `_validate`: *internal error, please report it*, con tamaño,
+  algoritmo, modo, patrón, semilla y número de llamada. El mensaje se
+  construye en un único método, `_internal_error`, que usan los dos.
+- El valor que devuelve `braid` se ignora a propósito: el validador
+  mide el tablero con su propio código justo después, y un paso no
+  califica su propio trabajo.
+- El mensaje de `_break_block` deja de empezar por *internal error*,
+  que ya lo añade el generador.
+
+**Alternativas descartadas.**
+- *Mantener el guardia.* Código muerto, como anticipaba ADR-020.
+- *Usar el recuento de `braid` para fallar antes.* Duplica al validador
+  y se fía de la palabra del paso que se comprueba.
+- *Capturar solo `GenerationError`.* Un `MazeError` de `open_wall` dentro
+  del braiding también es un bug nuestro.
+
+**Consecuencias.** Con la configuración por defecto el motor genera ya
+tableros de bonus; el programa completo sigue esperando a B3 y B5. El
+test de `tests/test_generator.py` que simulaba el stub del braiding con
+`monkeypatch` queda obsoleto y hay que quitarlo: ahora un
+`NotImplementedError` del braiding no se traduce. Lo sustituye
+`tests/test_generator_playable.py`, con 6 tests: la configuración por
+defecto da `(0, 3)` en 20x15, tamaños pequeños sin callejones, un fallo
+de `braid` o de `ensure_open` sale como error interno con la semilla, un
+`braid` que no hace nada y devuelve 0 lo caza el validador, y el modo
+perfecto nunca llama al braiding.

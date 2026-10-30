@@ -13,7 +13,7 @@ de la vía B, Lucas: una tarea de la vía B sin ✅ puede estar hecha y sin
 anotar.
 
 Última actualización: 30 oct 2026 · cerradas T0.1, T0.2, A4, A3, A5a,
-A5b y A7a.
+A5b, A6, A7a y A7b. La vía A solo tiene pendiente el bonus A8.
 
 ---
 
@@ -28,10 +28,10 @@ resto salga desigual.
 | Vía | Estimado | Cerrado | Restante |
 |---|---|---|---|
 | Fase 0 | 2 h | 1 h 30 (T0.1, T0.2) | 30 min (T0.3) |
-| Vía A (motor) | 15 h + 3 h de bonus | 8 h 30 (A4, A3, A5a, A5b, A7a) | 6 h 30 + 3 h de bonus |
+| Vía A (motor) | 15 h + 3 h de bonus | 15 h (A4, A3, A5a, A5b, A6, A7a, A7b) | 3 h de bonus (A8) |
 | Vía B (aplicación y entrega) | 22 h | sin anotar | 22 h |
 | Fase final conjunta | 9 h | — | 9 h |
-| **Total** | **~51 h** con bonus | 10 h | **~41 h** |
+| **Total** | **~51 h** con bonus | 16 h 30 | **~35 h** |
 
 Las horas cerradas son las estimadas, no las reales. El total decía
 ~48 h, pero la suma de la tabla siempre dio 51; queda corregido, y
@@ -51,9 +51,9 @@ cuadra con el acumulado del cronograma individual. En pareja salen unas
 | **A4** ✅ | `solver.py` | BFS con `deque`, reconstrucción del camino | `maze.py` | 2 h | Baja |
 | **A5a** ✅ | `validator.py` | Chequeos comunes: conectividad, bordes, bloques 3x3 | `maze.py` | 2 h | Media |
 | **A5b** ✅ | `validator.py` | Chequeos por modo: bucles (`E-V+C`) y callejones reales | A5a | 1 h | Media |
-| **A6** | `braiding.py` | `would_open_3x3`, `dead_ends`, `braid`, `ensure_open` | A3, A5 | 6 h | **Alta** |
+| **A6** ✅ | `braiding.py` | `would_open_3x3`, `dead_ends`, `braid`, `ensure_open` | A3, A5 | 6 h | **Alta** |
 | **A7a** ✅ | `generator.py` | Cerrar el pipeline en modo perfecto y afinar los mensajes de error | A3, A5 | 30 min | Baja |
-| **A7b** | `generator.py` | Repasar pipeline y mensajes con el braiding dentro | A6 | 30 min | Baja |
+| **A7b** ✅ | `generator.py` | Repasar pipeline y mensajes con el braiding dentro | A6 | 30 min | Baja |
 | **A8** | `algorithms/kruskal.py` | Union-find sobre aristas barajadas. **Bonus** | A3, A7a | 3 h | Media-alta |
 | **B1** | `config_parser.py` | `parse_config` y los tres parsers, con los cinco errores de la hoja | `errors.py` | 3 h | Media |
 | **B2** | `a_maze_ing.py` | Ajustar el entry point a lo que devuelva B1 | B1 | 30 min | Baja |
@@ -126,7 +126,9 @@ no rompe: sale con un error claro que pide `perfect=True` (ADR-020).
 
 *Estado:* la parte de la vía A del bloque está hecha. `validate`
 comprueba los dos modos y el generador no deja escapar ningún error
-que no sea `MazeError`. Queda arrancar A6.
+que no sea `MazeError`. A6 también está hecha (bloque 3), así que la
+copia local con `PERFECT=True` ya no hace falta: la configuración por
+defecto genera.
 
 **🔗 Sincronización S2.** `python3 a_maze_ing.py <copia>` genera,
 muestra y escribe un laberinto perfecto. **Este es el primer punto en
@@ -137,13 +139,19 @@ el que hay algo entregable.** Etiquetadlo en git y retirad
 
 | Emmanuel (6 h) | Lucas (5 h) |
 |---|---|
-| A6 braiding completo, A7b | B4 menú |
+| A6 braiding completo ✅, A7b ✅ | B4 menú |
 | | B6 empaquetado y wheel |
 
 **🔗 Sincronización S3.** Cambiar el `config.txt` a `PERFECT=False` y
 pasar `maze_analyzer.py --max-dead-ends 0`. Objetivo: *0 real + 3
 enclosed*. Y aquí va el repaso innegociable de `maze.py` y
 `braiding.py` línea a línea, los dos juntos.
+*Estado:* A6 y A7b hechas. El motor ya da *0 real + 3 enclosed* y
+*bonus-grade* en 20x15 con semilla 42, escrito con un formateador
+provisional; medido en 865 tableros de 3x3 a 60x40 (ADR-022). S3 solo
+espera a B5 para hacerlo con el writer real, y al repaso conjunto.
+Antes, quitar de `tests/test_generator.py` el test del stub del
+braiding (ADR-023).
 
 ### Bloque 4 · en paralelo · «bonus y pruebas»
 
@@ -182,7 +190,7 @@ aprieta.
 | 10 | B4 menú | 22 h 30 | todas las interacciones obligatorias |
 | 11 | A5b chequeos por modo ✅, A7a ✅ | 24 h | *Hito: modo perfecto completo y evaluable* |
 | 12 | B6 empaquetado y wheel | 27 h | *Hito: entregable con nota, aunque falte el braiding* |
-| 13 | A6 braiding, A7b | 33 h 30 | modo Pac-Man y bonus de cero callejones |
+| 13 | A6 braiding ✅, A7b ✅ | 33 h 30 | modo Pac-Man y bonus de cero callejones |
 | 14 | B9 tests y analizador en ambos modos | 36 h 30 | red de seguridad ante regresiones |
 | 15 | A8 Kruskal | 39 h 30 | segundo bonus |
 | 16 | B8b README completo | 42 h | los 11 elementos obligatorios |
@@ -252,8 +260,8 @@ cualquier terminación inesperada.
 
 ## 7. Riesgos de calendario
 
-- **El braiding se come su estimación.** Son 6 h optimistas. Si en la
-  sesión 13 no está, el orden elegido permite entregar sin él.
+- **El braiding se come su estimación.** Cerrado: A6 y A7b hechas en
+  su estimación, con el bonus de cero callejones medido.
 - **El empaquetado no es programar.** Es leer documentación de
   `pyproject.toml`, `build` y wheels: 2 o 3 h de aprendizaje que no
   produce código visible. No es tiempo perdido, es el capítulo VI.
