@@ -7,8 +7,8 @@ Describe cómo está montado el proyecto ahora mismo.
 El *porqué* de cada decisión no está aquí: está en `DECISIONS.md`, en
 formato ADR y en orden cronológico. Aquí solo se cita el número.
 
-Última actualización: 28 oct 2026 · T0.1, T0.2, A4, A3 y A5a cerradas
-· T0.3 pendiente de acordar con Lucas · ADR-013 y ADR-014 propuestas, a
+Última actualización: 30 oct 2026 · T0.1, T0.2, A4, A3, A5a, A5b y
+A7a cerradas · T0.3 pendiente de acordar con Lucas · ADR-013 y ADR-014 propuestas, a
 falta de su confirmación. El avance por tareas está en `PLAN.md`.
 
 ---
@@ -22,15 +22,16 @@ falta de su confirmación. El avance por tareas está en `PLAN.md`.
 | `algorithms/backtracker.py` | implementado y probado (A3, ADR-016) |
 | `algorithms/__init__.py`, `algorithms/base.py` | registro y clase base, hechos |
 | `algorithms/kruskal.py` | firma y docstring, `NotImplementedError` (A8, bonus) |
-| `validator.py` | chequeos comunes implementados y probados (A5a, ADR-017); `count_loops` y `count_dead_ends` pendientes (A5b) |
-| `generator.py` | pipeline real; genera de punta a punta en modo perfecto |
+| `validator.py` | completo: chequeos comunes (A5a, ADR-017) y por modo (A5b, ADR-019) |
+| `generator.py` | modo perfecto cerrado y mensajes de error afinados (A7a, ADR-020); el modo jugable espera a A6 |
 | `braiding.py` | firmas y docstrings, `NotImplementedError` (A6) |
 | `app/*` | firmas y docstrings |
 | `a_maze_ing.py` | implementado |
 | `tests/fixtures.py` | laberinto 5x5 cableado, usable ya |
 | `tests/test_solver.py` | hecho (A4) |
-| `tests/test_backtracker.py`, `tests/test_validator.py` | hechos (A3, A5a) |
-| `tests/test_analyzer.py` | hecho; se salta si no hay `maze_analyzer.py` local (ADR-018) |
+| `tests/test_backtracker.py`, `tests/test_validator.py` | hechos (A3, A5a, A5b) |
+| `tests/test_generator.py` | hecho (A7a): cuándo sale cada error y qué dice |
+| `tests/test_analyzer.py` | hecho; compara además `count_loops` y `count_dead_ends` con el analizador (A5b); se salta si no hay `maze_analyzer.py` local (ADR-018) |
 | `tests/dump_maze.py` | provisional, se retira en S2 (ADR-018) |
 | `Makefile`, `.gitignore`, `requirements-dev.txt`, `.flake8`, `mypy.ini` | hechos (T0.1) |
 | `config.txt` | hecho (T0.2) |
@@ -38,10 +39,12 @@ falta de su confirmación. El avance por tareas está en `PLAN.md`.
 
 Hasta A4, todo el árbol pasaba `make lint` y `make lint-strict` sin un
 solo aviso, con las versiones fijadas en `requirements-dev.txt`. Los
-ficheros de A3 y A5a pasan `flake8`, `mypy` con los flags del subject y
-`mypy --strict`, y 130 tests, pero verificados sobre una reconstrucción
-de `errors.py`, `pattern.py`, `solver.py` y `algorithms/__init__.py`:
-falta repetirlo en el repo (§10).
+ficheros de A3, A5a, A5b y A7a pasan `flake8`, `mypy` con los flags del
+subject y `mypy --strict`, y unos 180 tests, pero verificados sobre una
+reconstrucción de `errors.py`, `pattern.py`, `solver.py`,
+`algorithms/__init__.py` y `algorithms/base.py`: falta repetirlo en el
+repo (§10). La base de `validator.py` sí está comprobada: la parte A5a
+del repo coincide carácter a carácter con la que se usó para A5b.
 
 **Primer laberinto real del motor por el analizador oficial.** 20x15,
 semilla 42, modo perfecto: coherencia de muros OK, 280 celdas
@@ -49,11 +52,18 @@ alcanzables y ninguna aislada, 0 bucles, `28 real + 3 enclosed`, y
 veredicto *PERFECT maze*. Los 3 callejones *enclosed* son (7,6), (11,6)
 y (11,8), los que predecía ADR-007.
 
-El motor completa en modo perfecto, pero el programa todavía no: el
-writer (B5) y el renderer (B3) son stubs, así que `make run` no termina
-en ningún modo. Para ver un laberinto real mientras tanto,
-`python3 -m tests.dump_maze 20 15 42`. Y la configuración por defecto
-lleva `PERFECT=False` (ADR-014): necesitará además el braiding (A6).
+**Modo perfecto cerrado en el motor.** `validate` comprueba ya los dos
+modos, y sus medidas coinciden con las del analizador en todos los
+laberintos conexos probados (ADR-019). El generador rechaza cualquier
+parámetro imposible en el constructor y no deja escapar nada que no
+sea `MazeError` (ADR-020).
+
+El programa todavía no completa: el writer (B5) y el renderer (B3) son
+stubs, así que `make run` no termina en ningún modo. Para ver un
+laberinto real mientras tanto, `python3 -m tests.dump_maze 20 15 42`.
+La configuración por defecto lleva `PERFECT=False` (ADR-014): hasta A6
+termina con un error claro que pide `perfect=True`, no con un
+traceback.
 
 ---
 
@@ -81,6 +91,8 @@ lleva `PERFECT=False` (ADR-014): necesitará además el braiding (A6).
 | 016 | Backtracker como DFS iterativo con pila explícita | Aceptada |
 | 017 | El validador no reutiliza lo que valida; 3x3 abierto = 12 muros interiores abiertos | Aceptada |
 | 018 | Analizador antes de B5: helpers provisionales en `tests/` | Aceptada |
+| 019 | Chequeos por modo: `E − V + C` sobre las libres; umbrales del analizador como suelo | Aceptada |
+| 020 | Generador: parámetros en el constructor, stubs como `GenerationError`, fallos internos reproducibles | Aceptada |
 
 ---
 
@@ -111,8 +123,8 @@ lleva `PERFECT=False` (ADR-014): necesitará además el braiding (A6).
 │   ├── pattern.py         glifos, tamaño mínimo, estampado   [hecho]
 │   ├── solver.py          BFS → camino más corto             [hecho]
 │   ├── braiding.py        bucles, callejones, regla 3x3      [stub]
-│   ├── validator.py       invariantes                        [A5a hecha]
-│   ├── generator.py       MazeGenerator, pipeline            [hecho]
+│   ├── validator.py       invariantes, los dos modos         [hecho]
+│   ├── generator.py       MazeGenerator, pipeline            [A7a hecha]
 │   └── algorithms/
 │       ├── __init__.py    registro y get_algorithm()         [hecho]
 │       ├── base.py        Algorithm(ABC)                     [hecho]
@@ -130,7 +142,8 @@ lleva `PERFECT=False` (ADR-014): necesitará además el braiding (A6).
     ├── test_solver.py     BFS contra fuerza bruta            [hecho]
     ├── test_backtracker.py árbol de expansión, semilla       [hecho]
     ├── test_validator.py  cada chequeo, roto a propósito     [hecho]
-    ├── test_analyzer.py   40 laberintos por el analizador    [hecho]
+    ├── test_generator.py  errores del pipeline               [hecho]
+    ├── test_analyzer.py   veredicto y medidas vs analizador  [hecho]
     └── dump_maze.py       volcado al formato del subject     [provisional]
 ```
 
@@ -219,8 +232,13 @@ class MazeGenerator:
                  seed: int | None = None,
                  algorithm: str = "backtracker",
                  pattern: str | None = "42") -> None
+        # InvalidGeometryError o ConfigError: todo parámetro imposible,
+        # entrada o salida sobre el "42" incluidas, falla aquí.
     def generate(self) -> Maze
+        # GenerationError: paso aún sin implementar, o bug (el mensaje
+        # lleva los argumentos, la semilla y el número de llamada).
     maze, seed, algorithm, pattern_cells, pattern_skipped
+        # pattern_cells y pattern_skipped, válidos desde el constructor
 
 
 @dataclass(frozen=True)
@@ -246,7 +264,9 @@ braiding.ensure_open(maze, rng) -> None
 braiding.would_open_3x3(maze, x, y, d) -> bool
 braiding.dead_ends(maze) -> list[Cell]        # solo los reales
 validator.validate(maze, *, perfect) -> None
+validator.count_loops(maze) -> int                   # E - V + C
 validator.count_dead_ends(maze) -> tuple[int, int]   # (real, enclosed)
+validator.MIN_LOOPS = 2; validator.MAX_REAL_DEAD_ENDS = 2
 pattern.stamp(maze, text="42") -> set[Cell]
 pattern.minimum_grid(text="42") -> tuple[int, int]
 pattern.fits(width, height, text="42") -> bool
@@ -289,9 +309,10 @@ excepción en el momento.
 
 ```
 Config validada
-  → Maze vacío (todos los muros cerrados)
+  → MazeGenerator(...): tamaño, geometría, algoritmo, y entry/exit/
+    esquinas contra un "42" estampado en blanco (ADR-020)
+  → generate(): Maze vacío (todos los muros cerrados)
   → estampar "42"      ¿no cabe? → pattern_skipped = True, sigue
-  → validar entry/exit/esquinas contra las celdas bloqueadas
   → árbol de expansión sobre las celdas libres
   → si PERFECT=False: braiding (bucles y callejones) + ensure_open
   → validator (siempre, también en producción)
@@ -310,18 +331,24 @@ generador no imprime nada: expone `pattern_skipped` y es
 `a_maze_ing.py` quien saca el aviso por `stderr`. Una librería que
 imprime es una librería que molesta en el proyecto que la reutilice.
 
-El validador comprueba hoy, en este orden, borde exterior cerrado,
+El validador comprueba, en este orden, borde exterior cerrado,
 conectividad total de las celdas libres desde la entrada y ausencia de
-bloques 3x3 abiertos (A5a). Callejones reales y número de bucles
-independientes (`E - V + C`) llegan con A5b. Mide siempre con código
-propio, nunca con el que está validando: BFS propio en lugar del
-solver, rejilla final en lugar de `would_open_3x3` (ADR-017). Cuesta
-unos 2 ms en 20x15 y avisa antes que el peer-evaluator.
+bloques 3x3 abiertos (A5a). Después, según el modo (A5b): cero bucles
+independientes en modo perfecto, que junto con la conectividad es la
+definición de árbol de expansión; o al menos 2 bucles y como mucho 2
+callejones reales en modo jugable. Esos umbrales son los del
+analizador por defecto, el suelo del subject; el bonus de 0 callejones
+lo persigue el braiding, no lo exige el validador (ADR-019). Los
+comunes van primero porque `E − V + C` y la división de callejones solo
+coinciden con el analizador en un laberinto conexo. Mide siempre con
+código propio (ADR-017). Cuesta unos 2 ms en 20x15 y 80 ms en 100x100.
 
-Con A3 y A5a, `generate()` completa en modo perfecto. Hasta A5b,
-`validate` no cuenta bucles: que un laberinto perfecto no tenga
-ninguno lo garantiza la construcción del árbol (ADR-016) y lo comprueba
-`tests/test_analyzer.py`.
+Errores del generador (ADR-020). Un parámetro imposible falla en el
+constructor. Un paso que todavía es stub (braiding, Kruskal) sale como
+`GenerationError` con un mensaje que dice qué falta. Un fallo del
+validador es un bug nuestro: sale como *internal error, please report
+it*, con todo lo que reconstruye el laberinto. Nada sale del generador
+que no sea `MazeError`.
 
 ---
 
@@ -401,7 +428,7 @@ falte pone la nota a 0.
 | Muros en todo el contorno | invariante 2 + `validator.borders_closed` | estructural y comprobado (A5a) |
 | Sin zonas abiertas de 3x3, y saber explicar cómo se verifica | `validator.open_areas_3x3` + `braiding.would_open_3x3` | validador hecho, 12 muros interiores (ADR-017); braiding pendiente (A6) |
 | "42" presente, o mensaje en terminal si no cabe | `pattern.py` + aviso en `a_maze_ing.py` | hecho |
-| Laberinto perfecto si `PERFECT=True` | backtracker (ADR-016) + `validator.count_loops == 0` | árbol hecho y comprobado con el analizador; `count_loops` pendiente (A5b) |
+| Laberinto perfecto si `PERFECT=True` | backtracker (ADR-016) + `validator.count_loops == 0` | hecho y comprobado en cada generación (ADR-019) |
 | Mismo laberinto con la misma semilla | ADR-006 + clave `SEED` + solver determinista (ADR-015) | hecho en el motor |
 | Parámetros inconsistentes (entry/exit fuera, tamaño negativo) | `validate_geometry` en el constructor | hecho |
 | Reconstruir el paquete en un virtualenv e instalarlo en otro | `pyproject.toml` + `build` en `requirements-dev.txt` + README | pendiente, ver ADR-008 |
@@ -415,7 +442,7 @@ final con la hoja delante:
    created as part of the 42 curriculum by `<login1>`, `<login2>`.*
 2. Sección **Description**: objetivo y visión general.
 3. Sección **Instructions**: instalación y ejecución.
-4. Sección **Resources**: referencias externas y cómo se ha usado
+4. Sección **Resources**: referencias externas **y** cómo se ha usado
    la IA, diciendo en qué tareas y en qué partes del proyecto.
 5. Descripción completa del fichero de configuración.
 6. Algoritmo de generación elegido.
@@ -427,8 +454,7 @@ final con la hoja delante:
 11. Qué funcionó bien, qué mejoraríamos, y qué herramientas concretas
     usamos.
 
-El punto 8 tiene ya
-material: el contrato de `shortest_path` de la sección 4.
+El punto 8 tiene ya material: el contrato de `shortest_path` de la sección 4.
 
 ### 8.2 Qué mide exactamente el analizador
 
@@ -493,16 +519,34 @@ movimientos.
 
 ## 10. Pendiente de cerrar
 
-Casi todo esto se cierra en una conversación con Lucas, no en el código.
+Casi todo esto se cierra en una conversación con Lucas, no en el
+código.
 
 - **S1, en cuanto exista B5.** Cambiar el formateador provisional de
   `tests/test_analyzer.py` por `app.writer.write_maze`, generar el
   primer fichero con el writer real y pasarlo por el analizador. Debe
   decir *wall coherence OK*; si no, falla el contrato (ADR-018).
-- **Repetir lint y tests en el repo.** Los ficheros de A3 y A5a se
-  verificaron contra una reconstrucción de los módulos de los que
-  dependen: `make lint`, `make lint-strict` y `make test` sobre el repo
-  real.
+- **Repetir lint y tests en el repo.** Los ficheros de A3, A5a, A5b y
+  A7a se verificaron contra una reconstrucción de los módulos de los
+  que dependen: `make lint`, `make lint-strict` y `make test` sobre el
+  repo real.
+- **Para A6, antes de escribir código.** Qué significa exactamente
+  `ensure_open`: con la conectividad garantizada, toda celda libre
+  tiene ya al menos un lado abierto, así que "un lado abierto" no
+  añade nada; ¿debe significar "no ser callejón"? Y el analizador
+  cuenta como real un callejón aunque abrirlo crease un 3x3 (ADR-019):
+  el braiding tiene que buscar otra salida, no rendirse.
+- **Semilla cuando no hay `SEED`.** Si el generador eligiera y guardara
+  su propia semilla, cualquier fallo interno sería reproducible y el
+  menú podría mostrarla. Cambia el significado de la propiedad `seed`
+  del contrato, así que se decide con Lucas (ADR-020).
+- **Sugerencias para B2, a Lucas.** `warn_if_pattern_skipped` usa la
+  constante `PATTERN`, no `config.pattern`: con `PATTERN=4` el aviso
+  hablaría del "42" y de su tamaño mínimo. Y `a_maze_ing.py` solo
+  captura `MazeError`: si `parse_config` o `write_maze` dejan escapar
+  un `OSError` (fichero inexistente, `OUTPUT_FILE` en un directorio que
+  no existe, ver C3), es un traceback. O lo envuelven B1 y B5, o lo
+  captura el entry point.
 - **Confirmar ADR-013 y ADR-014.** En concreto, que el `pyproject.toml`
   de B6 no llevará `[tool.mypy]`, y que el parser de B1 aceptará el
   `config.txt` por defecto. Si admite comentarios al final de línea o
@@ -534,13 +578,14 @@ mueve a `DECISIONS.md` como ADR.
   Ubuntu, `python3 -m venv` exige el paquete `python3-venv`. Sin
   comprobar todavía en las máquinas del campus.
 - **La config por defecto no arranca hasta A6.** `PERFECT=False` pasa
-  por el braiding. Con `PERFECT=True` el motor ya completa, pero el
-  programa necesita además B3 y B5.
-- **Hasta A5b, `validate` no cuenta bucles.** En modo perfecto, el
-  "cero bucles" descansa en la construcción del árbol y en
-  `test_analyzer.py`, que se salta si no hay copia local del
-  analizador. Cerrar A5b antes de A6: el braiding sí crea bucles y
-  necesita que alguien los mida.
+  por el braiding. Desde A7a sale con un error claro en lugar de un
+  traceback, pero sigue sin generar. Con `PERFECT=True` el motor ya
+  completa; el programa necesita además B3 y B5.
+- **El validador puede tumbar un braiding casi perfecto.** Si `braid`
+  se rinde con 3 callejones reales en alguna rejilla, `validate` lo
+  convierte en *internal error* y el programa sale con código 1. Medir
+  en A6 en todos los tamaños desde 3x3, incluidos los pequeños sin
+  "42".
 - El braiding puede entrar en conflicto con la regla del 3x3 en
   laberintos pequeños. Medido hasta ahora: sin problemas desde 9x7 con
   un braiding ingenuo, pero el prototipo no es el código final.
@@ -550,4 +595,3 @@ mueve a `DECISIONS.md` como ADR.
   tiene sentido tocar Kruskal mientras falte un elemento del README.
 
 ---
-

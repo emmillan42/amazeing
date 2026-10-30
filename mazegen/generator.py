@@ -54,6 +54,11 @@ class MazeGenerator:
     ) -> None:
         """Validate the parameters of a future maze.
 
+        Every parameter is checked here, the pattern included: the
+        ``42`` is always stamped at the same place, so an entry sitting
+        on it is known before anything is carved.  A wrong parameter
+        never waits for :meth:`generate` to show up.
+
         Args:
             width: Number of columns.
             height: Number of rows.
@@ -68,14 +73,15 @@ class MazeGenerator:
 
         Raises:
             InvalidGeometryError: If the maze is smaller than
-                :data:`MIN_SIDE` on one side, or if entry or exit is
-                outside the grid or equal to the other.
+                :data:`MIN_SIDE` on one side, if entry or exit is
+                outside the grid or equal to the other, or if one of
+                them falls on the pattern.
             ConfigError: If ``algorithm`` is unknown.
         """
         if width < MIN_SIDE or height < MIN_SIDE:
             raise InvalidGeometryError(
-                f"maze too small: {width}x{height}, minimum is "
-                f"{MIN_SIDE}x{MIN_SIDE}"
+                f"invalid maze size {width}x{height}: each side must be "
+                f"at least {MIN_SIDE}"
             )
         exit = validate_geometry(width, height, entry, exit)
         get_algorithm(algorithm)
@@ -91,6 +97,8 @@ class MazeGenerator:
         self._maze: Maze | None = None
         self._pattern_cells: set[Cell] = set()
         self._pattern_skipped: bool = False
+        self._generated: int = 0
+        self._check_reserved_cells(self._blank_maze())
 
     # ------------------------------------------------------------------
     # Public interface
@@ -139,19 +147,17 @@ class MazeGenerator:
             The freshly generated maze, with its solution stored.
 
         Raises:
-            InvalidGeometryError: If entry or exit falls on the
-                pattern.
-            GenerationError: If the result breaks an invariant or if no
-                path links entry and exit.
+            GenerationError: If a step of the pipeline is not
+                implemented yet, or if the result breaks an invariant.
+                In the second case it is a bug, and the message carries
+                what is needed to reproduce it.
         """
-        maze = Maze(self._width, self._height, self._entry, self._exit)
-        self._stamp_pattern(maze)
-        self._check_reserved_cells(maze)
-        get_algorithm(self._algorithm).carve(maze, self._rng)
+        self._generated += 1
+        maze = self._blank_maze()
+        self._carve(maze)
         if not self._perfect:
-            braid(maze, self._rng)
-            ensure_open(maze, self._rng)
-        validate(maze, perfect=self._perfect)
+            self._braid(maze)
+        self._validate(maze)
         maze.set_solution(shortest_path(maze, maze.entry, maze.exit))
         self._maze = maze
         return maze
@@ -159,6 +165,12 @@ class MazeGenerator:
     # ------------------------------------------------------------------
     # Pipeline steps
     # ------------------------------------------------------------------
+
+    def _blank_maze(self) -> Maze:
+        """Return a maze with every wall closed and the pattern stamped."""
+        maze = Maze(self._width, self._height, self._entry, self._exit)
+        self._stamp_pattern(maze)
+        return maze
 
     def _stamp_pattern(self, maze: Maze) -> None:
         """Stamp the pattern, or record that it did not fit."""
@@ -190,5 +202,63 @@ class MazeGenerator:
             if maze.is_blocked(x, y):
                 raise InvalidGeometryError(
                     f"{name} ({x}, {y}) falls on the "
-                    f"{self._pattern!r} pattern"
+                    f"{self._pattern!r} pattern, choose a free cell"
                 )
+
+    def _carve(self, maze: Maze) -> None:
+        """Run the carving algorithm.
+
+        Raises:
+            GenerationError: If the algorithm is still a stub.
+        """
+        try:
+            get_algorithm(self._algorithm).carve(maze, self._rng)
+        except NotImplementedError as error:
+            raise GenerationError(
+                f"algorithm {self._algorithm!r} is not implemented yet"
+            ) from error
+
+    def _braid(self, maze: Maze) -> None:
+        """Turn the spanning tree into a playable board.
+
+        Raises:
+            GenerationError: If the braiding is still a stub.
+        """
+        try:
+            braid(maze, self._rng)
+            ensure_open(maze, self._rng)
+        except NotImplementedError as error:
+            raise GenerationError(
+                "the playable mode (perfect=False) is not implemented "
+                "yet, use perfect=True"
+            ) from error
+
+    def _validate(self, maze: Maze) -> None:
+        """Run the validator and make its failure reproducible.
+
+        A failure here is never the user's fault: the parameters were
+        all checked by the constructor.  The message says so and lists
+        what rebuilds the same maze: the arguments, seed included when
+        there is one, and which call to :meth:`generate` it was, since
+        each call draws from the same random generator.
+
+        Raises:
+            GenerationError: If the maze breaks an invariant.
+        """
+        try:
+            validate(maze, perfect=self._perfect)
+        except GenerationError as error:
+            raise GenerationError(
+                f"internal error, please report it: {error} "
+                f"[{self._describe()}]"
+            ) from error
+
+    def _describe(self) -> str:
+        """Return the arguments of this generator, for bug reports."""
+        seed = "unset" if self._seed is None else str(self._seed)
+        return (
+            f"{self._width}x{self._height}, "
+            f"algorithm={self._algorithm}, perfect={self._perfect}, "
+            f"pattern={self._pattern!r}, seed={seed}, "
+            f"generate() call #{self._generated}"
+        )

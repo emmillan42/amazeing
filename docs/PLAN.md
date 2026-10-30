@@ -12,7 +12,8 @@ de unas 3 horas. Poned las fechas encima según vuestra entrega.
 de la vía B, Lucas: una tarea de la vía B sin ✅ puede estar hecha y sin
 anotar.
 
-Última actualización: 28 oct 2026 · cerradas T0.1, T0.2, A4, A3 y A5a.
+Última actualización: 30 oct 2026 · cerradas T0.1, T0.2, A4, A3, A5a,
+A5b y A7a.
 
 ---
 
@@ -27,10 +28,10 @@ resto salga desigual.
 | Vía | Estimado | Cerrado | Restante |
 |---|---|---|---|
 | Fase 0 | 2 h | 1 h 30 (T0.1, T0.2) | 30 min (T0.3) |
-| Vía A (motor) | 15 h + 3 h de bonus | 7 h (A4, A3, A5a) | 8 h + 3 h de bonus |
+| Vía A (motor) | 15 h + 3 h de bonus | 8 h 30 (A4, A3, A5a, A5b, A7a) | 6 h 30 + 3 h de bonus |
 | Vía B (aplicación y entrega) | 22 h | sin anotar | 22 h |
 | Fase final conjunta | 9 h | — | 9 h |
-| **Total** | **~51 h** con bonus | 8 h 30 | **~42 h 30** |
+| **Total** | **~51 h** con bonus | 10 h | **~41 h** |
 
 Las horas cerradas son las estimadas, no las reales. El total decía
 ~48 h, pero la suma de la tabla siempre dio 51; queda corregido, y
@@ -49,9 +50,9 @@ cuadra con el acumulado del cronograma individual. En pareja salen unas
 | **A3** ✅ | `algorithms/backtracker.py` | DFS iterativo con pila explícita sobre las celdas libres | `maze.py` | 3 h | Media |
 | **A4** ✅ | `solver.py` | BFS con `deque`, reconstrucción del camino | `maze.py` | 2 h | Baja |
 | **A5a** ✅ | `validator.py` | Chequeos comunes: conectividad, bordes, bloques 3x3 | `maze.py` | 2 h | Media |
-| **A5b** | `validator.py` | Chequeos por modo: bucles (`E-V+C`) y callejones reales | A5a | 1 h | Media |
+| **A5b** ✅ | `validator.py` | Chequeos por modo: bucles (`E-V+C`) y callejones reales | A5a | 1 h | Media |
 | **A6** | `braiding.py` | `would_open_3x3`, `dead_ends`, `braid`, `ensure_open` | A3, A5 | 6 h | **Alta** |
-| **A7a** | `generator.py` | Cerrar el pipeline en modo perfecto y afinar los mensajes de error | A3, A5 | 30 min | Baja |
+| **A7a** ✅ | `generator.py` | Cerrar el pipeline en modo perfecto y afinar los mensajes de error | A3, A5 | 30 min | Baja |
 | **A7b** | `generator.py` | Repasar pipeline y mensajes con el braiding dentro | A6 | 30 min | Baja |
 | **A8** | `algorithms/kruskal.py` | Union-find sobre aristas barajadas. **Bonus** | A3, A7a | 3 h | Media-alta |
 | **B1** | `config_parser.py` | `parse_config` y los tres parsers, con los cinco errores de la hoja | `errors.py` | 3 h | Media |
@@ -110,8 +111,8 @@ solo espera a B5; al hacerla, ese test pasa a escribir con
 
 | Emmanuel (2 h + arranque de A6) | Lucas (5 h 30) |
 |---|---|
-| A5b chequeos por modo | B1 terminar |
-| A7a cerrar el modo perfecto | B2 ajustar el entry point |
+| A5b chequeos por modo ✅ | B1 terminar |
+| A7a cerrar el modo perfecto ✅ | B2 ajustar el entry point |
 | empezar A6 | B3 renderer |
 
 A5b va antes que A6 sin excepción: el braiding crea bucles y necesita
@@ -120,7 +121,12 @@ que alguien los mida.
 Durante este bloque se trabaja con una copia local del `config.txt` con
 `PERFECT=True`: es el único modo que funciona hasta que exista el
 braiding. El `config.txt` del repo se queda con `PERFECT=False`
-(ADR-014).
+(ADR-014). Desde A7a, con la configuración por defecto el programa ya
+no rompe: sale con un error claro que pide `perfect=True` (ADR-020).
+
+*Estado:* la parte de la vía A del bloque está hecha. `validate`
+comprueba los dos modos y el generador no deja escapar ningún error
+que no sea `MazeError`. Queda arrancar A6.
 
 **🔗 Sincronización S2.** `python3 a_maze_ing.py <copia>` genera,
 muestra y escribe un laberinto perfecto. **Este es el primer punto en
@@ -174,7 +180,7 @@ aprieta.
 | 8 | B2 ajuste del entry point | 15 h 30 | `python3 a_maze_ing.py config.txt` |
 | 9 | B3 renderer | 20 h 30 | **se ve el laberinto y el "42"** |
 | 10 | B4 menú | 22 h 30 | todas las interacciones obligatorias |
-| 11 | A5b chequeos por modo, A7a | 24 h | *Hito: modo perfecto completo y evaluable* |
+| 11 | A5b chequeos por modo ✅, A7a ✅ | 24 h | *Hito: modo perfecto completo y evaluable* |
 | 12 | B6 empaquetado y wheel | 27 h | *Hito: entregable con nota, aunque falte el braiding* |
 | 13 | A6 braiding, A7b | 33 h 30 | modo Pac-Man y bonus de cero callejones |
 | 14 | B9 tests y analizador en ambos modos | 36 h 30 | red de seguridad ante regresiones |

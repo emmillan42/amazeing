@@ -644,3 +644,140 @@ comprueba de verdad. `dump_maze.py` se retira cuando
 `python3 a_maze_ing.py` funcione con `PERFECT=True` (S2). Si B9
 necesita helpers compartidos entre tests, el sitio natural es
 `tests/conftest.py`, que pytest carga sin que nadie lo importe.
+
+---
+
+## ADR-019 — Chequeos por modo: `E − V + C` sobre las celdas libres y umbrales del analizador como suelo
+
+**Fecha:** 2026-10-30 · **Estado:** Aceptada
+
+**Contexto.** A5b. `validate` tenía que distinguir los dos modos: cero
+bucles con `PERFECT=True`, y un tablero jugable con `PERFECT=False`.
+Las dos medidas, bucles y callejones, tenían que dar exactamente el
+número que da el analizador oficial, para poder comparar sin traducir
+nada (ADR-011). Quedaba por decidir con qué fórmula, sobre qué grafo y
+con qué umbrales.
+
+**Decisión.**
+
+- `count_loops` es `E − V + C` sobre el grafo de celdas libres: muros
+  abiertos entre dos celdas libres, contados una vez mirando solo al
+  este y al sur; celdas libres; componentes conexas, contadas con el
+  `_reachable` de A5a.
+- `count_dead_ends` devuelve `(real, enclosed)` sobre las celdas libres
+  de grado 1. Un callejón es *enclosed* cuando todos sus muros cerrados
+  dan al borde o a una celda bloqueada, y se mira el conjunto
+  `maze.blocked`, no el código `f` de la celda.
+- `validate` corre siempre primero los chequeos comunes. Después, en
+  modo perfecto exige cero bucles; en modo jugable, al menos
+  `MIN_LOOPS = 2` bucles y como mucho `MAX_REAL_DEAD_ENDS = 2`
+  callejones reales. Son los valores por defecto del analizador, como
+  constantes del módulo.
+
+**Medido antes de decidir.** 400 comparaciones contra el analizador
+(5 tamaños de 3x3 a 41x25, 10 semillas, abriendo 5 muros al azar entre
+medida y medida para recorrer muchos números de bucles): 0
+discrepancias en bucles y en callejones. En 20x15 con semilla 42 da
+`0` bucles y `(28, 3)`, lo mismo que el analizador en A5a. Solo hay
+discrepancia en laberintos **no conexos**, y ahí la nuestra es la
+correcta: dos cuadrados abiertos de 2x2 separados dan 2 bucles con
+`E − V + C` y 1 en el analizador, que solo mira la región de la
+entrada; un callejón junto a una celda libre aislada es real para
+nosotros y *enclosed* para él, que toma por "42" toda celda cerrada por
+sus cuatro lados. `validate` rechaza un laberinto no conexo antes de
+contar nada, así que en producción las dos medidas coinciden siempre.
+
+**Alternativas descartadas.**
+- *`E − V + 1`, como el analizador.* Da −1 en el caso de los dos
+  cuadrados. Solo vale con una componente, y `count_loops` es una
+  función pública que los tests usan sobre laberintos hechos a mano.
+- *Contar las celdas bloqueadas como vértices.* Sorprendentemente, no
+  cambia el resultado: cada celda bloqueada suma 1 a V y 1 a C. Se
+  excluyen igualmente, porque el grafo que interesa es el de las
+  celdas libres, y así el filtro de aristas tiene sentido.
+- *Código `f` para reconocer el patrón.* Es lo que puede hacer el
+  analizador, que solo lee un fichero. El `Maze` sabe qué celdas son
+  del patrón; usar un indicio teniendo el dato es peor.
+- *Umbral de 0 callejones en el validador.* Es el bonus, no el
+  requisito. Un validador que exige el bonus convierte en error fatal
+  un braiding que deja un callejón real en una rejilla difícil. El
+  validador es el suelo del subject; el objetivo de 0 vive en
+  `braid(..., max_dead_ends=0)`.
+- *Umbrales como parámetros de `validate`.* Cambia una firma del
+  contrato para algo que nadie necesita variar hoy.
+- *Chequeo propio de esquinas y centro.* Redundante: son celdas libres
+  (el generador lo impone), y los chequeos comunes ya probaron que toda
+  celda libre es alcanzable.
+
+**Consecuencias.** El modo perfecto queda verificado por `validate` en
+cada generación: conexo más cero bucles es exactamente un árbol de
+expansión, ya no descansa solo en la construcción ni en
+`tests/test_analyzer.py`. `tests/test_analyzer.py` compara las dos
+medidas con el analizador en 320 puntos: 40 laberintos a los que se
+van abriendo muros al azar. El filtro de
+aristas hacia celdas bloqueadas solo es alcanzable escribiendo el
+almacenamiento a mano, igual que el borde roto de A5a, y tiene su test.
+Para A6 quedan dos datos: el analizador cuenta como real un callejón
+aunque abrirlo crease un 3x3, así que el braiding no puede descartar
+candidatos sin buscar alternativa; y, con la conectividad garantizada,
+toda celda libre tiene ya al menos un lado abierto, de modo que
+`ensure_open`, tal como está documentado, no haría nada.
+
+---
+
+## ADR-020 — Errores del generador: parámetros en el constructor, stubs como `GenerationError`, fallos internos reproducibles
+
+**Fecha:** 2026-10-30 · **Estado:** Aceptada
+
+**Contexto.** A7a. Con A5b el modo perfecto queda cerrado, pero el
+pipeline seguía teniendo tres salidas feas. Una entrada sobre el "42"
+solo se detectaba al generar, aunque el resto de parámetros se
+rechazan en el constructor. `PERFECT=False`, que es la configuración
+por defecto (ADR-014), y `ALGORITHM=kruskal` llegaban a un
+`NotImplementedError`, que no es `MazeError`: traceback en pantalla, un
+0 en la hoja. Y un fallo del validador, que siempre es un bug nuestro,
+se presentaba al usuario como si fuera culpa suya y sin forma de
+reproducirlo.
+
+**Decisión.**
+
+- El constructor estampa el patrón en un laberinto en blanco y
+  comprueba entrada, salida y, en modo jugable, esquinas. El estampado
+  es determinista, así que el resultado es el de cualquier `generate`.
+- `_carve` y `_braid` convierten un `NotImplementedError` en
+  `GenerationError` con un mensaje que dice qué falta y, para el modo
+  jugable, qué usar mientras tanto.
+- `_validate` envuelve el error del validador como *internal error,
+  please report it* y añade todo lo que reconstruye ese laberinto:
+  tamaño, algoritmo, modo, patrón, semilla y número de llamada a
+  `generate()`, porque cada llamada consume el mismo `rng`.
+- El error de tamaño pasa a decir *invalid maze size 1x15: each side
+  must be at least 3*. Antes empezaba por *maze too small*, igual que
+  el aviso, no fatal, de que el "42" no cabe.
+
+**Alternativas descartadas.**
+- *Un `except Exception` en `a_maze_ing.py`.* Es la red de último
+  recurso que muchos ponen, pero se traga los bugs sin decir de dónde
+  vienen, y es el fichero de B2. Aquí cada error que sabemos que puede
+  salir tiene su mensaje propio.
+- *Quitar Kruskal del registro hasta A8.* Daría un `ConfigError` en el
+  constructor, más temprano todavía, pero es otro fichero, y A8 tendría
+  que acordarse de volver a registrarlo. El guardia de `_carve` vale
+  para cualquier algoritmo futuro a medias.
+- *Comprobar entrada y salida en `generate`, como antes.* Correcto,
+  pero tardío: un uso de la librería con un parámetro imposible
+  construía el generador sin quejarse.
+- *Que el generador elija su propia semilla cuando no se le da.* Haría
+  reproducible cualquier fallo, también sin `SEED`, pero cambia el
+  significado de la propiedad `seed` del contrato. Queda abierto en
+  `ARCHITECTURE.md`.
+
+**Consecuencias.** Ningún camino del generador termina en traceback:
+todo lo que sale de `MazeGenerator` es `MazeError`, que es lo único que
+captura `a_maze_ing.py`. `pattern_skipped` y `pattern_cells` se conocen
+desde el constructor. `tests/test_generator.py` prueba los stubs con
+`monkeypatch`, de modo que sus tests no cambian de significado cuando
+llegue A6. En A7b hay que decidir si el guardia de `_braid` se queda:
+con el braiding hecho es código muerto. Sin semilla, la receta de
+reproducción del mensaje queda incompleta, y el mensaje lo dice
+(`seed=unset`).
