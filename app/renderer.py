@@ -1,116 +1,63 @@
-# class Direction:
-#     NORTH = 0
-#     EAST = 1
-#     SOUTH = 2
-#     WEST = 3
+"""ASCII rendering of a maze, with ANSI colours.
+
+MiniLibX would need ctypes bindings and a working X server; box
+drawing characters plus ANSI escapes need nothing at all, work on every
+campus machine, and make colour rotation a one-line change.
+
+The drawing is a grid of ``2 * width + 1`` by ``2 * height + 1``
+characters: odd positions are cells, even ones the walls between them.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from mazegen.maze import Maze
+
+RESET: str = "\033[0m"
 
 
-# class Maze:
-#     def __init__(self) -> None:
-#         self.width = 4
-#         self.height = 4
-#         self.entry = (0, 0)
-#         self.exit = (2, 2)
-#         self.blocked = [(1, 1)]
-#         self.solution = [
-#             (0, 0),
-#             (1, 0),
-#             (2, 0),
-#             (2, 1),
-#             (2, 2)
-#         ]
+@dataclass(frozen=True)
+class Palette:
+    """The ANSI escapes used to draw one frame.
 
-#     def has_wall(self, x: int, y: int, direction: int) -> bool:
-#         return True
+    Attributes:
+        name: Name shown in the menu.
+        walls: Colour of the walls.
+        pattern: Colour of the "42" pattern.
+        path: Colour of the shortest path.
+        entry: Colour of the entry cell.
+        exit: Colour of the exit cell.
+    """
 
-#     def to_hex_lines(self) -> list[str]:
-#         return ["953", "c56", "957"]
-
-#     def solution_string(self) -> str:
-#         return "EESS"
+    name: str
+    walls: str
+    pattern: str
+    path: str
+    entry: str
+    exit: str
 
 
-# def get_dummy_maze():
-#     return Maze()
-
-
-PALETTES = {
-    "default": {
-        "reset": "\033[0m",
-        "entry": "\033[92m",
-        "exit": "\033[91m",
-        "path": "\033[93m",
-        "wall": "\033[34m",
-        "blocked": "\033[90m"
-    },
-    "neon": {
-        "reset": "\033[0m",
-        "entry": "\033[90m",
-        "exit": "\033[34m",
-        "path": "\033[96m",
-        "wall": "\033[92m",
-        "blocked": "\033[91m"
-    }
-}
-
-
-def _render_h_wall(maze: Maze, x: int, y: int, colors: dict) -> str:
-    if maze.has_wall(x, y, Direction.NORTH):
-        return (f"{colors['wall']}---{colors['reset']}")
-    else:
-        return ("   ")
-
-
-def _render_v_wall(maze: Maze, x: int, y: int, colors: dict) -> str:
-    if maze.has_wall(x, y, Direction.WEST):
-        return (f"{colors['wall']}|{colors['reset']}")
-    else:
-        return (" ")
-
-
-def _render_cell_content(
-        maze: Maze, x: int, y: int, show_path: bool, colors: dict
-) -> str:
-    if (x, y) in maze.blocked:
-        return (f"{colors['blocked']}███{colors['reset']}")
-    elif (x, y) == maze.entry:
-        return (f"{colors['entry']} E {colors['reset']}")
-    elif (x, y) == maze.exit:
-        return (f"{colors['exit']} X {colors['reset']}")
-    elif show_path and (x, y) in maze.solution:
-        return (f"{colors['path']} ● {colors['reset']}")
-    else:
-        return ("   ")
+PALETTES: tuple[Palette, ...] = (
+    Palette("white", RESET, "\033[37m", "\033[96m", "\033[95m",
+            "\033[91m"),
+    Palette("amber", "\033[33m", "\033[93m", "\033[97m", "\033[95m",
+            "\033[91m"),
+    Palette("green", "\033[32m", "\033[92m", "\033[96m", "\033[95m",
+            "\033[91m"),
+)
 
 
 def render(
-        maze: Maze, show_path: bool = False, palette: str = "default"
+    maze: Maze, show_path: bool = False, palette: Palette = PALETTES[0]
 ) -> str:
-    colors = PALETTES.get(palette, PALETTES["default"])
+    """Return the whole maze as a printable string.
 
-    lines = []
-    for y in range(0, maze.height - 1):
-        up_string = ""
-        for x in range(0, maze.width - 1):
-            up_string += f"{colors['wall']}+{colors['reset']}"
-            up_string += _render_h_wall(maze, x, y, colors)
-        up_string += f"{colors['wall']}+{colors['reset']}"
-        lines.append(up_string)
+    Args:
+        maze: The maze to draw.
+        show_path: Whether to highlight the stored shortest path.
+        palette: The colours to use.
 
-        low_string = ""
-        for x in range(0, maze.width - 1):
-            low_string += _render_v_wall(maze, x, y, colors)
-            low_string += _render_cell_content(maze, x, y, show_path, colors)
-        low_string += f"{colors['wall']}|{colors['reset']}"
-        lines.append(low_string)
-
-    last_string = ""
-    for x in range(0, maze.width - 1):
-        last_string += f"{colors['wall']}+---{colors['reset']}"
-    last_string += f"{colors['wall']}+{colors['reset']}"
-    lines.append(last_string)
-
-    return ("\n".join(lines))
-
-
-# print(render(get_dummy_maze(), True, "default"))
+    Returns:
+        The frame, newline separated, ready for ``print``.
+    """
+    raise NotImplementedError

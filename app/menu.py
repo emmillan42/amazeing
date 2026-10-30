@@ -1,59 +1,62 @@
+"""Interactive loop driving the terminal display."""
+from __future__ import annotations
 
-def run_menu(maze: Maze, generator: MazeGenerator | None = None) -> None:
-    show_path = False
-    current_palette = "default"
-    palettes = ["default", "neon"]
-    current_maze = maze
+from app.config_parser import Config
+from mazegen.generator import MazeGenerator
 
-    while True:
-        try:
-            print("\033[H\033[J", end="")
-            print(render(current_maze, show_path, current_palette))
-            print(
-                "========================================\n"
-                "              A-MAZE-ING\n"
-                "========================================"
-            )
-            print(
-                f" [1] Regenerar laberinto\n"
-                f" [2] Mostrar / Ocultar camino solución "
-                f"(Estado: {show_path})\n"
-                f" [3] Cambiar paleta de colores "
-                f"(Actual: '{current_palette}')\n"
-                f" [4] Salir"
-            )
-            print("========================================")
-
-            choice = input("Elige una opción (1-4): ")
-
-            if choice == "1":
-                if generator is not None:
-                    current_maze = generator.generate()
-                continue
-
-            elif choice == "2":
-                show_path = not show_path
-
-            elif choice == "3":
-                print("\033[H\033[J", end="")
-
-                num_palettes = len(palettes)
-
-                for i in range(0, num_palettes):
-                    print(f" [{i}] {palettes[i]}")
-
-                choice_2 = input(f"Elige una paleta (0-{num_palettes-1}): ")
-
-                if choice_2.isdigit() and int(choice_2) in range(num_palettes):
-                    current_palette = palettes[int(choice_2)]
-
-            elif choice == "4":
-                print("\n¡Gracias por jugar a A-Maze-ing!\n")
-                break
-
-        except (KeyboardInterrupt, EOFError):
-            print("\n¡Hasta luego!\n")
-            break
+MENU: str = (
+    "=== A-Maze-ing ===\n"
+    "1. Re-generate a new maze\n"
+    "2. Show / Hide the shortest path\n"
+    "3. Rotate the wall colours\n"
+    "4. Save the maze on display to the output file\n"
+    "5. Quit\n"
+)
 
 
-# run_menu(get_dummy_maze())
+class Menu:
+    """Draw a maze and let the user act on it.
+
+    Attributes:
+        generator: The generator producing the mazes.
+        config: The configuration, needed to rewrite the output file
+            after a new generation.
+    """
+
+    def __init__(
+        self, generator: MazeGenerator, config: Config
+    ) -> None:
+        """Store the generator and start on the current maze."""
+        self._generator = generator
+        self._config = config
+        self._show_path = False
+        self._palette = 0
+
+    def run(self) -> None:
+        """Draw the maze, then loop until the user quits.
+
+        Invalid choices, ``Ctrl+C`` and the end of the input stream are
+        caught, so the program never ends on a traceback.
+        """
+        raise NotImplementedError
+
+    def _regenerate(self) -> None:
+        """Generate a new maze and display it.
+
+        The output file is **not** touched: the evaluation sheet asks
+        for the first generated maze to be the one stored there.
+        Writing the maze on display is an explicit menu entry instead.
+        """
+        raise NotImplementedError
+
+    def _save(self) -> None:
+        """Write the maze currently on display to the output file."""
+        raise NotImplementedError
+
+    def _toggle_path(self) -> None:
+        """Show or hide the shortest path."""
+        raise NotImplementedError
+
+    def _next_palette(self) -> None:
+        """Switch to the next colour palette."""
+        raise NotImplementedError

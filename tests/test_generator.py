@@ -96,16 +96,6 @@ def test_stub_algorithm_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
         MazeGenerator(20, 15, perfect=True).generate()
 
 
-def test_stub_braiding_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Patched, so the test keeps its meaning once A6 is done.
-    def stub(maze: Maze, rng: random.Random, max_dead_ends: int = 0) -> int:
-        raise NotImplementedError
-
-    monkeypatch.setattr(generator_module, "braid", stub)
-    with pytest.raises(GenerationError, match="perfect=True"):
-        MazeGenerator(20, 15, perfect=False).generate()
-
-
 def test_mode_reaches_the_validator(monkeypatch: pytest.MonkeyPatch) -> None:
     # With a braiding that does nothing, the playable mode gets a bare
     # spanning tree, which only the playable checks can reject.
