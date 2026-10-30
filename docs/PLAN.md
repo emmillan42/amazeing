@@ -13,7 +13,8 @@ de la vía B, Lucas: una tarea de la vía B sin ✅ puede estar hecha y sin
 anotar.
 
 Última actualización: 30 oct 2026 · cerradas T0.1, T0.2, A4, A3, A5a,
-A5b, A6, A7a y A7b. La vía A solo tiene pendiente el bonus A8.
+A5b, A6, A7a, A7b, B1, B2, B3, B4, B5 y B7 (la vía B, corregida, ADR-024)
+S1 cerrada · nueva tarea A9 por ADR-025.
 
 ---
 
@@ -28,10 +29,10 @@ resto salga desigual.
 | Vía | Estimado | Cerrado | Restante |
 |---|---|---|---|
 | Fase 0 | 2 h | 1 h 30 (T0.1, T0.2) | 30 min (T0.3) |
-| Vía A (motor) | 15 h + 3 h de bonus | 15 h (A4, A3, A5a, A5b, A6, A7a, A7b) | 3 h de bonus (A8) |
-| Vía B (aplicación y entrega) | 22 h | sin anotar | 22 h |
+| Vía A (motor) | 16 h + 3 h de bonus | 15 h (A4, A3, A5a, A5b, A6, A7a, A7b) | 1 h (A9) + 3 h de bonus (A8) |
+| Vía B (aplicación y entrega) | 22 h | 13 h (B1, B2, B3, B4, B5, B7) | 9 h (B6, B8a, B8b, B9) |
 | Fase final conjunta | 9 h | — | 9 h |
-| **Total** | **~51 h** con bonus | 16 h 30 | **~35 h** |
+| **Total** | **~52 h** con bonus | 29 h 30 | **~23 h** |
 
 Las horas cerradas son las estimadas, no las reales. El total decía
 ~48 h, pero la suma de la tabla siempre dio 51; queda corregido, y
@@ -55,16 +56,17 @@ cuadra con el acumulado del cronograma individual. En pareja salen unas
 | **A7a** ✅ | `generator.py` | Cerrar el pipeline en modo perfecto y afinar los mensajes de error | A3, A5 | 30 min | Baja |
 | **A7b** ✅ | `generator.py` | Repasar pipeline y mensajes con el braiding dentro | A6 | 30 min | Baja |
 | **A8** | `algorithms/kruskal.py` | Union-find sobre aristas barajadas. **Bonus** | A3, A7a | 3 h | Media-alta |
-| **B1** | `config_parser.py` | `parse_config` y los tres parsers, con los cinco errores de la hoja | `errors.py` | 3 h | Media |
-| **B2** | `a_maze_ing.py` | Ajustar el entry point a lo que devuelva B1 | B1 | 30 min | Baja |
-| **B3** | `renderer.py` | Muros, entrada, salida, camino, patrón, paletas ANSI | `fixtures.py` | 5 h | Media |
-| **B4** | `menu.py` | Las cuatro interacciones más guardar (ADR-009) | B3 | 2 h | Baja |
-| **B5** | `writer.py` | Formato exacto: hex, línea vacía, entry, exit, camino | `fixtures.py` | 2 h | Baja |
-| **B6** | `pyproject.toml` | Construir el wheel y probarlo **fuera del repo** | A7a | 3 h | Media |
-| **B7** | `LICENSE.md` | Texto MIT con el año y los dos nombres (ADR-010) | — | 30 min | Baja |
+| **A9** | `pattern.py` | Columna libre sobre la columna central y mínimo `4n + 4` con `n` impar; el "42" no cambia (ADR-025) | — | 1 h | Baja |
+| **B1** ✅ | `config_parser.py` | `parse_config` y los tres parsers, con los cinco errores de la hoja | `errors.py` | 3 h | Media |
+| **B2** ✅ | `a_maze_ing.py` | Ajustar el entry point a lo que devuelva B1 | B1 | 30 min | Baja |
+| **B3** ✅ | `renderer.py` | Muros, entrada, salida, camino, patrón, paletas ANSI | `fixtures.py` | 5 h | Media |
+| **B4** ✅ | `menu.py` | Las cuatro interacciones más guardar (ADR-009) | B3 | 2 h | Baja |
+| **B5** ✅ | `writer.py` | Formato exacto: hex, línea vacía, entry, exit, camino | `fixtures.py` | 2 h | Baja |
+| **B6** | `pyproject.toml` | Construir el wheel y probarlo **fuera del repo**. *Hecho el `pyproject.toml`; falta el wheel en la raíz y su target* | A7a | 3 h | Media |
+| **B7** ✅ | `LICENSE.md` | Texto MIT con el año y los dos nombres (ADR-010) | — | 30 min | Baja |
 | **B8a** | `README.md` | Esqueleto con las 11 secciones obligatorias, vacías | — | 30 min | Baja |
 | **B8b** | `README.md` | Rellenarlo entero | todo | 2 h 30 | Baja |
-| **B9** | `tests/` | pytest de los invariantes + `maze_analyzer.py` en ambos modos. Parte de `tests/test_analyzer.py`, que ya cubre el modo perfecto (ADR-018) | A7b, B5 | 3 h | Media |
+| **B9** | `tests/` | pytest de los invariantes + `maze_analyzer.py` en ambos modos. *Ya hay tests de toda la vía B y `test_analyzer.py` escribe con el writer real; falta el analizador en modo jugable sobre ficheros del writer* | A7b, B5 | 3 h | Media |
 | **C1** | — | Integración y fricciones | todo | 3 h | — |
 | **C2** | — | `flake8` y `mypy --strict` a cero | C1 | 1 h | — |
 | **C3** | — | Casos límite (ver 6) | C1 | 3 h | — |
@@ -89,31 +91,28 @@ sin avisar al otro.
 
 | Emmanuel (7 h) | Lucas (6 h) |
 |---|---|
-| A4 solver ✅ | B5 writer, contra `toy_maze()` |
-| A3 backtracker ✅ | B7 licencia MIT |
+| A4 solver ✅ | B5 writer ✅ |
+| A3 backtracker ✅ | B7 licencia MIT ✅ |
 | A5a validador común ✅ | B8a esqueleto del README |
 | | B1 config parser (empezar) |
 
 Orden obligado en la vía A: `generate()` llama a `validate()` siempre,
 así que hasta que A5a no exista el pipeline completo no corre. Hecho:
-con A3 y A5a, `generate()` corre entero en modo perfecto. Para ver un
-laberinto sin writer, `python3 -m tests.dump_maze 20 15 42` (ADR-018).
+con A3 y A5a, `generate()` corre entero en modo perfecto.
 
 **🔗 Sincronización S1.** Juntar A3 + A5a + B5 y generar el primer
 fichero de salida real. Pasarle `maze_analyzer.py`. Debe decir *wall
 coherence OK*. Si algo falla aquí, falla el contrato, no el código.
-*Estado:* la parte de la vía A ya pasa el analizador, escrita con un
-formateador provisional (40 laberintos en `tests/test_analyzer.py`). S1
-solo espera a B5; al hacerla, ese test pasa a escribir con
-`write_maze`.
+*Estado:* ✅ cerrada. `tests/test_analyzer.py` escribe sus 40
+laberintos con `write_maze` y todos pasan el analizador (ADR-024).
 
 ### Bloque 2 · en paralelo · «programa completo en modo perfecto»
 
 | Emmanuel (2 h + arranque de A6) | Lucas (5 h 30) |
 |---|---|
-| A5b chequeos por modo ✅ | B1 terminar |
-| A7a cerrar el modo perfecto ✅ | B2 ajustar el entry point |
-| empezar A6 | B3 renderer |
+| A5b chequeos por modo ✅ | B1 terminar ✅ |
+| A7a cerrar el modo perfecto ✅ | B2 ajustar el entry point ✅ |
+| empezar A6 ✅ | B3 renderer ✅ |
 
 A5b va antes que A6 sin excepción: el braiding crea bucles y necesita
 que alguien los mida.
@@ -134,24 +133,25 @@ defecto genera.
 muestra y escribe un laberinto perfecto. **Este es el primer punto en
 el que hay algo entregable.** Etiquetadlo en git y retirad
 `tests/dump_maze.py` (ADR-018).
+*Estado:* `dump_maze.py` retirado y el programa funciona. Queda hacerlo
+a mano con `make run` y `PERFECT=True`, pasar el `maze.txt` por el
+analizador, y poner la etiqueta.
 
 ### Bloque 3 · en paralelo · «modo Pac-Man»
 
 | Emmanuel (6 h) | Lucas (5 h) |
 |---|---|
-| A6 braiding completo ✅, A7b ✅ | B4 menú |
-| | B6 empaquetado y wheel |
+| A6 braiding completo ✅, A7b ✅ | B4 menú ✅ |
+| A9 patrón con `n` impar (ADR-025) | B6 empaquetado y wheel |
 
 **🔗 Sincronización S3.** Cambiar el `config.txt` a `PERFECT=False` y
 pasar `maze_analyzer.py --max-dead-ends 0`. Objetivo: *0 real + 3
 enclosed*. Y aquí va el repaso innegociable de `maze.py` y
 `braiding.py` línea a línea, los dos juntos.
-*Estado:* A6 y A7b hechas. El motor ya da *0 real + 3 enclosed* y
-*bonus-grade* en 20x15 con semilla 42, escrito con un formateador
-provisional; medido en 865 tableros de 3x3 a 60x40 (ADR-022). S3 solo
-espera a B5 para hacerlo con el writer real, y al repaso conjunto.
-Antes, quitar de `tests/test_generator.py` el test del stub del
-braiding (ADR-023).
+*Estado:* el motor da *0 real + 3 enclosed* y *bonus-grade* en 20x15 con
+semilla 42 en el repo real, y el programa completo escribe ficheros que
+el analizador da por *bonus-grade*. Queda hacerlo a mano con `make run`
+y el repaso conjunto.
 
 ### Bloque 4 · en paralelo · «bonus y pruebas»
 
@@ -182,19 +182,19 @@ aprieta.
 | 2 | A4 solver ✅ | 4 h | camino más corto sobre `toy_maze()` |
 | 3 | A3 backtracker ✅ | 7 h | laberintos de verdad en memoria |
 | 4 | A5a validador común ✅ | 9 h | `generate()` corre entero en modo perfecto |
-| 5 | B5 writer | 11 h | **fichero de salida validado por el analizador** |
-| 6 | B7 licencia, B8a esqueleto del README | 12 h | dos riesgos de nota 0 eliminados |
-| 7 | B1 config parser | 15 h | el programa lee su configuración |
-| 8 | B2 ajuste del entry point | 15 h 30 | `python3 a_maze_ing.py config.txt` |
-| 9 | B3 renderer | 20 h 30 | **se ve el laberinto y el "42"** |
-| 10 | B4 menú | 22 h 30 | todas las interacciones obligatorias |
+| 5 | B5 writer ✅ | 11 h | **fichero de salida validado por el analizador** |
+| 6 | B7 licencia ✅, B8a esqueleto del README | 12 h | dos riesgos de nota 0 eliminados |
+| 7 | B1 config parser ✅ | 15 h | el programa lee su configuración |
+| 8 | B2 ajuste del entry point ✅ | 15 h 30 | `python3 a_maze_ing.py config.txt` |
+| 9 | B3 renderer ✅ | 20 h 30 | **se ve el laberinto y el "42"** |
+| 10 | B4 menú ✅ | 22 h 30 | todas las interacciones obligatorias |
 | 11 | A5b chequeos por modo ✅, A7a ✅ | 24 h | *Hito: modo perfecto completo y evaluable* |
 | 12 | B6 empaquetado y wheel | 27 h | *Hito: entregable con nota, aunque falte el braiding* |
 | 13 | A6 braiding ✅, A7b ✅ | 33 h 30 | modo Pac-Man y bonus de cero callejones |
 | 14 | B9 tests y analizador en ambos modos | 36 h 30 | red de seguridad ante regresiones |
-| 15 | A8 Kruskal | 39 h 30 | segundo bonus |
-| 16 | B8b README completo | 42 h | los 11 elementos obligatorios |
-| 17 | C1, C2, C3, C4 | 51 h | listo para defender |
+| 15 | A9 patrón con `n` impar, A8 Kruskal | 40 h 30 | `PATTERN` de cualquier longitud y segundo bonus |
+| 16 | B8b README completo | 43 h | los 11 elementos obligatorios |
+| 17 | C1, C2, C3, C4 | 52 h | listo para defender |
 
 Dos cosas que parecen fuera de sitio y no lo están:
 

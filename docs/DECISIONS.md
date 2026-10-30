@@ -173,7 +173,8 @@ El `rng` aparece en la firma de `Algorithm.carve` y de las funciones de
 
 ## ADR-007 — Glifos del "42" en 3x5 y tamaño mínimo 9x7
 
-**Fecha:** 2026-09-28 · **Estado:** Aceptada
+**Fecha:** 2026-09-28 · **Estado:** Aceptada (ADR-025 la completa para
+textos con un número impar de glifos)
 
 **Contexto.** Había que fijar la forma exacta del patrón antes de nada,
 porque determina el tamaño mínimo del laberinto y la cuenta de
@@ -362,8 +363,8 @@ laberinto sin dibujo.
 
 ## ADR-013 — Herramientas en `.venv` con versiones fijadas; lint configurado en `.flake8` y `mypy.ini`
 
-**Fecha:** 2026-10-10 · **Estado:** Propuesta (falta que Lucas confirme
-el punto que afecta a `pyproject.toml`)
+**Fecha:** 2026-10-10 · **Estado:** Aceptada (confirmada 2026-10-30: el
+`pyproject.toml` de B6 no lleva `[tool.mypy]`, ADR-024)
 
 **Contexto.** El subject exige que `make lint` ejecute literalmente
 `flake8 .` y `mypy .` con unos flags concretos, recomienda un entorno
@@ -417,8 +418,8 @@ que subirlo para B9 no rompe nada.
 
 ## ADR-014 — `config.txt` solo con comentarios de línea completa; opcionales comentadas
 
-**Fecha:** 2026-10-10 · **Estado:** Propuesta (falta que Lucas confirme
-que su parser lo acepta tal cual)
+**Fecha:** 2026-10-10 · **Estado:** Aceptada (confirmada 2026-10-30: el
+parser de B1 solo admite comentarios de línea completa, ADR-024)
 
 **Contexto.** El `config.txt` por defecto es un entregable y lo primero
 que ejecuta el evaluador. El ejemplo de `ARCHITECTURE.md` §7 tenía
@@ -982,3 +983,137 @@ defecto da `(0, 3)` en 20x15, tamaños pequeños sin callejones, un fallo
 de `braid` o de `ensure_open` sale como error interno con la semilla, un
 `braid` que no hace nada y devuelve 0 lo caza el validador, y el modo
 perfecto nunca llama al braiding.
+
+---
+
+## ADR-024 — Vía B: se corrigen los ficheros de Lucas en lugar de sustituirlos; el parser solo comprueba sintaxis y tipos
+
+**Fecha:** 2026-10-30 · **Estado:** Aceptada
+
+**Contexto.** Con la vía A verificada en el repo, `make lint` solo
+fallaba en `app/`.
+
+**Medido antes de decidir**, ejecutando los ficheros con solo
+los imports añadidos:
+- `renderer.py` recorría `range(height - 1)` y `range(width - 1)`: en
+  5x4 dibujaba 3 filas y 4 columnas, y la salida, en la esquina
+  opuesta, no aparecía nunca.
+- `writer.py` escribía `(0, 0)` en vez de `0,0`, sin línea vacía ni
+  `\n` final; el analizador lo rechazaba en la línea 5.
+- `config_parser.py` no importaba `ConfigError`, distinguía mayúsculas
+  (`width=20` daba "falta WIDTH") y dejaba escapar `FileNotFoundError`,
+  un traceback; además imprimía su diccionario en cada arranque.
+- `menu.py` exponía `run_menu(maze, generator)`, que no encajaba con
+  `Menu(generator, config).run()` de `a_maze_ing.py`, y no tenía la
+  entrada de guardar de ADR-009.
+- Todos con finales de línea CRLF, código comentado y sin docstrings.
+
+**Decisión.** Se corrigen los ficheros conservando su diseño: la
+rejilla de celdas de 3 caracteres, sus paletas, el flujo del menú y la
+conversión de `OSError` en `MazeError` del writer.
+
+- *Parser.* Solo sintaxis y tipos: la geometría la valida
+  `MazeGenerator`, para que cada regla viva en un sitio y con un único
+  mensaje. Claves a mayúsculas al leerlas. Clave desconocida o repetida
+  es un `ConfigError` con número de línea. `SEED` o `ALGORITHM` vacíos
+  toman su valor por defecto; `PATTERN` vacío no dibuja nada (ADR-012).
+  `OSError` y `UnicodeDecodeError` se convierten en `ConfigError`.
+- *Writer.* El texto completo se construye antes de abrir el fichero,
+  con `newline="\n"`; `format_maze` queda aparte para probar el formato
+  sin disco.
+- *Renderer.* Cada borde se dibuja desde los muros reales, incluidos el
+  este y el sur del contorno. Las paletas pasan de diccionarios a un
+  `dataclass` congelado, `Palette`: una clave mal escrita la ve `mypy`,
+  no el evaluador. El "42" lleva color propio.
+- *Menú.* La lógica de Lucas dentro de la clase del contrato: regenerar
+  sin tocar disco, camino, color, guardar y salir. Un fallo al guardar
+  se muestra en el menú, no cierra el programa. Textos en inglés, como
+  los errores del motor.
+- *Entry point.* El aviso de "no cabe" usa `config.pattern`, no la
+  constante.
+- *Empaquetado.* `license = "MIT"` con `license-files`, porque la forma
+  de tabla está obsoleta y `setuptools` anuncia su retirada en 2027.
+- `.gitattributes` fija LF en todo el repo, para que los ficheros de los
+  dos no choquen en los diffs.
+
+**Alternativas descartadas.**
+- *Sustituir por los stubs.* El programa dejaría de funcionar.
+- *Arreglar solo los imports.* El lint pasaría, pero la salida seguiría
+  sin dibujarse y el analizador seguiría rechazando el fichero.
+- *Mantener las comprobaciones de geometría en el parser.* Duplicaban
+  `validate_geometry` con otro mínimo (1 en lugar de 3) y otros
+  mensajes.
+- *Submenú de paletas.* Se pasa a la siguiente: una pulsación, y es lo
+  que pide la hoja.
+
+**Verificado.** En la reconstrucción: los cinco errores de la hoja y
+ocho más (fichero inexistente, sin argumentos, clave mal escrita o
+repetida, directorio de salida inexistente, tamaño negativo, entrada
+fuera, algoritmo desconocido) dan mensaje claro y código 1; el programa
+completo escribe un fichero que el analizador da por *bonus-grade*; 48
+tests nuevos, y cada uno de los cuatro fallos de Lucas reintroducido lo
+detecta alguno; el wheel se construye sin avisos y se instala y usa
+fuera del repo. En el repo real: `make lint` y `make lint-strict` sobre
+30 ficheros y `make test` con 580 tests, todo en verde. `PATTERN=7` da
+`no glyph for character '7', available: 2, 4` y código 1.
+
+**Consecuencias.** La autoría se escribe tal cual en el README: B1 a B5
+los escribió Lucas. S1 se cierra:
+`tests/test_analyzer.py` escribe con `app.writer.write_maze`, y
+`tests/dump_maze.py` se retira (ADR-018). ADR-013 y ADR-014 quedan
+confirmadas. Se borra `app/test.txt` y se corrigen los logins de
+`LICENSE.md` y `pyproject.toml`. Queda de B6 construir el wheel en el
+repo, dejarlo en la raíz y añadir su target al `Makefile`.
+
+---
+
+## ADR-025 — El patrón se coloca con una columna libre sobre la columna central; con un número impar de glifos, el ancho mínimo pasa a 4n + 4
+
+**Fecha:** 2026-10-30 · **Estado:** Aceptada, pendiente de implementar
+en `pattern.py` · Completa ADR-007
+
+**Contexto.** Medido en el repo real con `PATTERN=4`: el analizador
+busca el centro en (4, 3) en 9x7 y en (9, 7) y (10, 7) en 20x15, y las
+tres celdas están bloqueadas. El veredicto es *Not Pac-Man-ready*
+aunque el braiding deje 0 callejones. Además, el centro de ADR-004 cae
+en un hueco del glifo: el jugador empezaría encerrado. Con el "42" no
+pasa, por eso §8.2 lo daba por bueno.
+
+**Causa.** El bloque mide `4n − 1` columnas, con `n` glifos, y se
+centra. Con `n` par, la columna central de la rejilla es una columna de
+separación entre glifos, siempre libre. Con `n` impar, es la columna
+del medio de un glifo, y la fila central del glifo suele estar llena
+(en el "4", `###`).
+
+**Decisión.** El bloque se coloca de forma que una columna libre, de
+separación o la de junto a un glifo único, coincida con la columna
+`(W − 1) // 2`. Con `n` par es exactamente la colocación actual: el
+"42" queda idéntico bit a bit y todas las medidas anteriores siguen
+valiendo. Con `n` impar el bloque se desplaza 2 columnas respecto al
+centrado, hacia el lado que tenga sitio.
+
+Por qué esa columna resuelve las dos cosas: ADR-004 usa la columna
+`(W − 1) // 2`, y el analizador mira `W // 2` con `W` impar o
+`W / 2 − 1` y `W / 2` con `W` par, que incluyen esa misma columna. Al
+estar libre la columna entera, la fila deja de importar.
+
+**Medido.** Por fuerza bruta para 1 a 5 glifos y anchos hasta 80: con
+`n` par la colocación centrada actual siempre cumple; con `n` impar el
+desplazamiento es siempre de 2, y el ancho mínimo pasa de `4n + 1` a
+`4n + 4` (el "4", de 5 a 8). Por encima del mínimo, todo ancho cabe.
+El alto no cambia.
+
+**Alternativas descartadas.**
+- *Desplazar 1 columna.* La columna central caería en un borde del
+  glifo, bloqueado en la fila central.
+- *Desplazar en vertical.* Ninguna fila de los glifos está entera libre.
+- *Rechazar en el parser los textos de longitud impar.* Castiga una
+  opción que funciona en modo perfecto.
+- *Documentarlo como limitación.* El README debe describir el fichero de
+  configuración completo, y un evaluador podría probar `PATTERN=4`.
+
+**Consecuencias.** Con `n` impar el dibujo queda descentrado 2
+columnas. `minimum_grid` y `fits` deben dar el nuevo mínimo, para que
+el aviso de "no cabe" sea cierto. Tests pendientes: para textos de 1 a
+3 glifos y todos los tamaños desde el mínimo, la columna central está
+libre; y el analizador da *usable* con `PATTERN=4` en 9x7 y 20x15.

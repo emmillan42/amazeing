@@ -18,6 +18,7 @@ from typing import Any
 
 import pytest
 
+from app.writer import write_maze
 from mazegen.generator import MazeGenerator
 from mazegen.maze import Direction, Maze
 from mazegen.validator import count_dead_ends, count_loops
@@ -30,23 +31,9 @@ SIZES: list[tuple[int, int]] = [
 ]
 
 
-def subject_format(maze: Maze) -> str:
-    """Lay ``maze`` out as the output file of the subject.
-
-    Stand-in for ``app.writer.write_maze``: once B5 lands, this test
-    must write through the real writer, which is what S1 is about.
-    """
-    footer = [
-        f"{maze.entry[0]},{maze.entry[1]}",
-        f"{maze.exit[0]},{maze.exit[1]}",
-        maze.solution_string(),
-    ]
-    return "\n".join(maze.to_hex_lines() + [""] + footer) + "\n"
-
-
 def analyze(maze: Maze, path: Path) -> Any:
     """Write ``maze`` to ``path`` and return the analyzer's report."""
-    path.write_text(subject_format(maze), encoding="utf-8")
+    write_maze(path, maze)
     return analyzer.analyze(analyzer.Maze.from_file(str(path)))
 
 
