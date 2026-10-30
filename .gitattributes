@@ -1,0 +1,8 @@
+# Store every text file with LF line endings, whatever the editor or OS.
+# Mixed CRLF/LF endings make a whole file look changed in a diff.
+* text=auto eol=lf
+
+# Binary artefacts must never be converted.
+*.whl binary
+*.pdf binary
+*.gz binary

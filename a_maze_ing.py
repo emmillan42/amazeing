@@ -13,7 +13,7 @@ from app.menu import Menu
 from app.writer import write_maze
 from mazegen.errors import MazeError
 from mazegen.generator import MazeGenerator
-from mazegen.pattern import PATTERN, minimum_grid
+from mazegen.pattern import minimum_grid
 
 USAGE: str = "usage: python3 a_maze_ing.py config.txt"
 
@@ -32,13 +32,19 @@ def build_generator(config: Config) -> MazeGenerator:
     )
 
 
-def warn_if_pattern_skipped(generator: MazeGenerator) -> None:
-    """Warn on the console when the maze was too small for the 42."""
-    if not generator.pattern_skipped:
+def warn_if_pattern_skipped(
+    generator: MazeGenerator, config: Config
+) -> None:
+    """Warn on the console when the maze was too small for the pattern.
+
+    The text comes from the configuration, not from the default: with
+    ``PATTERN=4`` the warning must talk about "4" and its own minimum.
+    """
+    if not generator.pattern_skipped or config.pattern is None:
         return
-    min_width, min_height = minimum_grid(PATTERN)
+    min_width, min_height = minimum_grid(config.pattern)
     print(
-        f"warning: maze too small for the {PATTERN!r} pattern, "
+        f"warning: maze too small for the {config.pattern!r} pattern, "
         f"it needs at least {min_width}x{min_height}",
         file=sys.stderr,
     )
@@ -60,7 +66,7 @@ def main(argv: list[str]) -> int:
         config = parse_config(argv[1])
         generator = build_generator(config)
         maze = generator.generate()
-        warn_if_pattern_skipped(generator)
+        warn_if_pattern_skipped(generator, config)
         write_maze(config.output_file, maze)
         Menu(generator, config).run()
     except MazeError as error:
