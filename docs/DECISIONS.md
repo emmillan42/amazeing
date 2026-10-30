@@ -497,3 +497,150 @@ README. Como el analizador no comprueba la línea del camino,
 `tests/test_solver.py` compara el resultado con un oráculo de fuerza
 bruta en 200 laberintos aleatorios con bucles; cambiar `popleft()` por
 `pop()`, es decir, convertir el BFS en un DFS, hace fallar 8 de ellos.
+
+---
+
+## ADR-016 — El backtracker es un DFS iterativo con pila explícita
+
+**Fecha:** 2026-10-28 · **Estado:** Aceptada
+
+**Contexto.** A3. El backtracker es el algoritmo por defecto: tiene que
+producir un árbol de expansión sobre las celdas libres, ser
+reproducible con la semilla, no tocar las celdas del patrón y funcionar
+para cualquier tamaño que acepte `MazeGenerator`.
+
+**Decisión.** Búsqueda en profundidad iterativa con una lista como
+pila. La celda actual se consulta con `stack[-1]`, sin sacarla, y solo
+sale de la pila cuando ya no le quedan vecinos sin visitar. El conjunto
+`visited` se inicializa con las celdas bloqueadas, de modo que el
+patrón queda fuera sin ninguna condición aparte. La celda de inicio se
+elige con `rng.choice` entre las celdas libres, en orden de filas. Los
+vecinos se recorren en el orden del enum `Direction` y `rng.choice`
+elige entre pares `(dirección, celda)`.
+
+**Medido antes de decidir.** La profundidad máxima de la pila es la
+longitud del pasillo más largo que abre el DFS: 175 en 20x15, 672 en
+40x30 y 4.023 en 100x100. El límite de recursión por defecto de Python
+es 1.000.
+
+**Alternativas descartadas.**
+- *Versión recursiva.* Es la forma clásica de escribirlo, pero lanza
+  `RecursionError` en cuanto el pasillo más largo supera las 1.000
+  celdas, y eso ocurre en tamaños razonables. Subir el límite con
+  `sys.setrecursionlimit` cambia el `RecursionError` por el riesgo de
+  desbordar la pila de C del intérprete, que es peor.
+- *`stack.pop()` en cada iteración.* Abandona la celda aunque le
+  queden vecinos sin visitar y deja zonas sin conectar. Comprobado: los
+  tests lo detectan.
+- *Empezar siempre en la entrada.* Acopla el algoritmo a un concepto
+  que su contrato no menciona: `Algorithm` habla de "las celdas
+  libres". La corrección no depende del punto de inicio.
+- *Filtrar las bloqueadas con una condición propia.* Misma garantía con
+  dos condiciones en lugar de una, y `open_wall` las rechazaría de
+  todos modos (invariante 3).
+
+**Consecuencias.** El resultado es un árbol por construcción: cada
+apertura se hace hacia una celda no visitada, así que añade exactamente
+una celda al árbol y no puede cerrar un ciclo. Eso da V celdas libres
+unidas por V − 1 aristas, todas conectadas, que es lo que comprueba
+`tests/test_backtracker.py` con su propio recorrido. La terminación
+depende de `visited`: sin él, el bucle no acaba nunca (comprobado). El
+coste es lineal en el número de celdas. Misma semilla, mismo
+laberinto, y el `random` global queda intacto (ADR-006, con test).
+Cambiar el inicio por una celda fija no rompe ningún test, y es lo
+esperado: cambia qué laberinto sale, no si es correcto.
+
+---
+
+## ADR-017 — El validador no reutiliza el código que valida; un 3x3 abierto son 12 muros interiores abiertos
+
+**Fecha:** 2026-10-28 · **Estado:** Aceptada
+
+**Contexto.** A5a. El validador corre sobre cada laberinto generado,
+también en producción, y hacía falta decidir dos cosas: de dónde sale
+cada medida y qué es exactamente un "área abierta de 3x3". El subject
+solo dice que se permiten áreas de 2x3 y 3x2, pero nunca de 3x3.
+
+**Decisión.** Cada chequeo usa código propio. La conectividad se mide
+con un BFS del propio módulo (`_reachable`) que parte de la entrada,
+igual que el analizador, y no con el solver. La regla del 3x3 se
+comprueba sobre la rejilla final, no con `braiding.would_open_3x3`.
+
+Un bloque de 3x3 es abierto cuando están abiertos sus **12 muros
+interiores**: 6 verticales (2 por fila en 3 filas) y 6 horizontales (3
+por fila en 2 huecos). Sus muros exteriores no cuentan.
+
+`validate` comprueba en este orden: borde cerrado, conectividad, 3x3.
+Cada fallo lanza `GenerationError` con la cuenta y la primera celda
+afectada; por eso la lógica de conectividad vive en `_unreachable`,
+que devuelve la lista, y `is_connected` es solo su versión booleana.
+Los chequeos por modo, bucles y callejones, son A5b; hasta entonces el
+parámetro `perfect` no se usa.
+
+**Alternativas descartadas.**
+- *Reutilizar el solver o `would_open_3x3`.* Si el validador comparte
+  código con lo que valida, un bug en ese código pasa los dos filtros a
+  la vez y se tapa solo. Es el mismo motivo por el que
+  `tests/test_solver.py` usa un oráculo independiente. Además,
+  `shortest_path` responde si hay camino entre dos celdas, no si se
+  alcanzan todas.
+- *"Nueve celdas conectadas" como definición de área abierta.* Un 3x3
+  recorrido en serpiente tiene sus 9 celdas conectadas con 8 aristas y
+  es un pasillo normal. Ese criterio marcaría como prohibidos
+  laberintos válidos.
+- *Omitir `borders_closed` porque el borde es estructural (invariante
+  2).* Cuesta 2(W+H) lecturas, es defensa en profundidad y la hoja de
+  evaluación pide saber explicar cómo se verifica.
+
+**Consecuencias.** La definición da el argumento de ADR-003 en una
+línea: un árbol sobre 9 celdas tiene como mucho 8 aristas y un 3x3
+abierto necesita 12, así que el árbol de expansión no puede contener
+ninguno. Los tests cierran uno a uno los 12 muros para comprobar que
+cada uno cuenta. El coste medido es de unos 2 ms en 20x15 y 128 ms en
+100x100: despreciable, pero no "microsegundos", como decía
+`ARCHITECTURE.md`. `_reachable` servirá en A5b para contar las
+componentes C de `E − V + C`. Mientras A5b no exista, que un laberinto
+perfecto no tenga bucles lo garantiza la construcción (ADR-016) y lo
+comprueba `tests/test_analyzer.py`, no `validate`.
+
+---
+
+## ADR-018 — Comprobación con el analizador antes de B5: helpers provisionales en `tests/`
+
+**Fecha:** 2026-10-28 · **Estado:** Aceptada
+
+**Contexto.** La sincronización S1 pasa por el writer de Lucas (B5),
+pero el motor ya genera laberintos perfectos y conviene pasarlos por el
+analizador oficial cuanto antes. `maze_analyzer.py` está en el
+`.gitignore` (ADR-013), así que no siempre existe en el repo.
+
+**Decisión.** `tests/test_analyzer.py` importa el analizador con
+`pytest.importorskip`: si no hay copia local en la raíz, el módulo se
+salta con un aviso en lugar de fallar. Escribe cada laberinto con un
+formateador propio de 8 líneas y comprueba coherencia, conectividad,
+cero bucles y veredicto `PERFECT` en 40 laberintos, de 3x3 a 41x25.
+Para probarlo a mano, `tests/dump_maze.py` vuelca un laberinto en el
+formato del subject (`python3 -m tests.dump_maze 20 15 42`). Los
+módulos de `tests/` no se importan entre sí.
+
+**Medido antes de decidir.** Con `test_analyzer.py` importando el
+formateador desde `tests.dump_maze`, `mypy .` se detiene con *Source
+file found twice under different module names*, porque `tests/` no es
+un paquete.
+
+**Alternativas descartadas.**
+- *Añadir `tests/__init__.py`.* Arregla mypy, pero cambia cómo pytest
+  nombra e importa los módulos de test, y puede romper los imports de
+  `test_solver.py`. No compensa por 8 líneas.
+- *Lanzar `dump_maze` como subproceso desde el test.* Sin import, pero
+  40 procesos de Python por ejecución.
+- *Esperar a B5.* Pierde justo lo que S1 quiere: detectar pronto un
+  fallo de contrato.
+
+**Consecuencias.** Hay 8 líneas duplicadas entre los dos ficheros, y
+las dos copias tienen fecha de caducidad. En S1, `test_analyzer.py`
+pasa a escribir con `app.writer.write_maze`, porque eso es lo que S1
+comprueba de verdad. `dump_maze.py` se retira cuando
+`python3 a_maze_ing.py` funcione con `PERFECT=True` (S2). Si B9
+necesita helpers compartidos entre tests, el sitio natural es
+`tests/conftest.py`, que pytest carga sin que nadie lo importe.
