@@ -14,9 +14,17 @@ BIN    := $(VENV)/bin
 # so make reinstalls them only if requirements-dev.txt is newer.
 STAMP  := $(VENV)/.installed
 
+# Date written on every file of the wheel (2026-09-23, start of the
+# project).  With a fixed date, the same sources always give the same
+# bytes, so git shows the wheel as modified only when the code changed.
+EPOCH  := 1790121600
+# Scratch folder, outside the repository, for package-test.
+TRY    ?= /tmp/mazegen-package-test
+
 .DEFAULT_GOAL := run
 
-.PHONY: install run debug clean fclean lint lint-strict test
+.PHONY: install run debug clean fclean lint lint-strict test \
+	package package-test
 
 install: $(STAMP)
 
@@ -56,3 +64,30 @@ lint-strict: $(STAMP)
 # root on sys.path, which the tests need to import mazegen.
 test: $(STAMP)
 	$(BIN)/python -m pytest
+
+# Build the wheel straight into the repository root.  build/ goes
+# first: setuptools reuses it, and a module deleted since the last
+# build would end up in the new wheel.  The old wheel goes too, so a
+# version bump never leaves two of them.
+package: $(STAMP)
+	rm -rf build *.egg-info mazegen-*.whl
+	SOURCE_DATE_EPOCH=$(EPOCH) $(BIN)/python -m build --wheel --outdir .
+	rm -rf build *.egg-info
+
+# What the evaluation sheet asks: install the wheel in another
+# virtualenv and run a_maze_ing.py with it.  It has to happen outside
+# the repository, where no local mazegen/ folder can hide the
+# installed one (ADR-008); app/ is copied because it is not part of
+# the reusable package.
+package-test: package
+	rm -rf $(TRY)
+	mkdir -p $(TRY)
+	$(PYTHON) -m venv $(TRY)/venv
+	$(TRY)/venv/bin/python -m pip install --quiet mazegen-*.whl
+	cp -r a_maze_ing.py app $(CONFIG) $(TRY)/
+	cd $(TRY) && venv/bin/python -c \
+		"import mazegen, sys; print(mazegen.__file__); \
+		sys.exit('site-packages' not in mazegen.__file__)"
+	cd $(TRY) && venv/bin/python a_maze_ing.py $(notdir $(CONFIG)) \
+		< /dev/null > /dev/null
+	@echo "package-test OK: mazegen installed outside the repository"

@@ -1,12 +1,17 @@
 [build-system]
-requires = ["setuptools>=77"]
+# Exact pin: the bytes of the wheel depend on the setuptools version,
+# and the committed wheel must be the one `make package` rebuilds on
+# any machine.
+requires = ["setuptools==84.2.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "mazegen"
 version = "1.0.0"
 description = "A reusable maze generator: perfect mazes and playable boards"
-readme = "README.md"
+# The documentation of the module, not the README of the project: the
+# subject keeps the two apart (chapter VI).
+readme = "mazegen/README.md"
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE.md"]
@@ -17,3 +22,9 @@ authors = [
 
 [tool.setuptools.packages.find]
 include = ["mazegen*"]
+
+[tool.setuptools.package-data]
+# Shipped inside the package: the documentation, so the single file
+# holds code and documentation, and the PEP 561 marker, so a project
+# reusing mazegen can type-check it with mypy.
+mazegen = ["README.md", "py.typed"]
