@@ -7,10 +7,11 @@ Describe cómo está montado el proyecto ahora mismo.
 El *porqué* de cada decisión no está aquí: está en `DECISIONS.md`, en
 formato ADR y en orden cronológico. Aquí solo se cita el número.
 
-Última actualización: 30 oct 2026 · motor completo salvo el bonus A8
-y la colocación del patrón de ADR-025 · vía B de B1 a B5 y B7 cerrada
-(ADR-024), B6 a falta del wheel en la raíz · S1 cerrada · el programa
-funciona de punta a punta. El avance por tareas está en `PLAN.md`.
+Última actualización: 31 oct 2026 · **vías A y B terminadas**: motor
+con los dos bonus del subject (ADR-026, ADR-027), wheel reproducible en
+la raíz (ADR-028), README completo y analizador en ambos modos vigilados
+por tests (ADR-029) · S1 cerrada · queda la fase final conjunta, C1 a
+C4. El avance por tareas está en `PLAN.md`.
 
 ---
 
@@ -19,28 +20,35 @@ funciona de punta a punta. El avance por tareas está en `PLAN.md`.
 | Bloque | Estado |
 |---|---|
 | `errors.py`, `maze.py` | implementados y probados |
-| `pattern.py` | implementado; falta la colocación de ADR-025 para textos con un número impar de glifos |
+| `pattern.py` | implementado y probado, con la colocación de ADR-025 (A9, ADR-026) |
 | `solver.py` | implementado y probado: 207 tests contra un oráculo de fuerza bruta (A4) |
 | `algorithms/backtracker.py` | implementado y probado (A3, ADR-016) |
 | `algorithms/__init__.py`, `algorithms/base.py` | registro y clase base, hechos |
-| `algorithms/kruskal.py` | firma y docstring, `NotImplementedError` (A8, bonus) |
+| `algorithms/kruskal.py` | implementado y probado (A8, bonus, ADR-027) |
 | `validator.py` | completo: chequeos comunes (A5a, ADR-017) y por modo (A5b, ADR-019) |
 | `braiding.py` | completo (A6, ADR-021 y ADR-022) |
-| `generator.py` | completo: los dos modos y errores reproducibles (A7a, A7b, ADR-020, ADR-023) |
+| `generator.py` | completo: los dos modos, y errores reproducibles en los tres pasos que solo fallan por un bug (A7a, A7b, A8; ADR-020, ADR-023, ADR-027) |
 | `mazegen/__init__.py` | fachada, hecha |
 | `app/config_parser.py`, `writer.py`, `renderer.py`, `menu.py` | completos (B1, B3, B4, B5, ADR-024) |
 | `a_maze_ing.py` | completo (B2) |
-| `tests/` | 580 tests: motor, vía B y analizador; `test_analyzer.py` escribe ya con el writer real (S1) |
-| `Makefile`, `.gitignore`, `.gitattributes`, `requirements-dev.txt`, `.flake8`, `mypy.ini` | hechos (T0.1; `.gitattributes`, ADR-024) |
+| `mazegen/README.md`, `mazegen/py.typed` | documentación del módulo y marcador PEP 561, dentro del wheel (B6, ADR-028) |
+| `tests/` | 807 tests: motor, vía B, analizador en ambos modos, documentación y README (ADR-026, ADR-028, ADR-029) |
+| `Makefile`, `.gitignore`, `.gitattributes`, `requirements-dev.txt`, `.flake8`, `mypy.ini` | hechos (T0.1; `.gitattributes`, ADR-024; targets `package` y `package-test`, ADR-028) |
 | `config.txt` | hecho (T0.2) |
-| `pyproject.toml`, `LICENSE.md` | hechos (B6, B7); el wheel construido en la raíz, pendiente |
-| `README.md` | pendiente (B8) |
+| `pyproject.toml`, `LICENSE.md` | hechos (B6, B7, ADR-028) |
+| `mazegen-1.0.0-py3-none-any.whl` | en la raíz y subido; reproducible bit a bit (B6, ADR-028) |
+| `README.md` | completo y vigilado por `test_readme.py` (B8, ADR-029) |
 
 **Verificado en el repo real**, no en una reconstrucción: `make lint` y
-`make lint-strict` pasan en los 30 ficheros, y `make test` da 580
-passed. Con el "42" y la configuración por defecto, 20x15 y semilla 42,
-el analizador da `0 real + 3 enclosed`, 27 bucles y *bonus-grade*: las
-mismas cifras que la reconstrucción, que era fiel.
+`make lint-strict` pasan en los 38 ficheros, y `make test` da 807
+passed, ninguno saltado. `make package-test` instala el wheel fuera del
+repo y ejecuta el `a_maze_ing.py` real con él, y tras `make package`
+`git status` queda vacío: el wheel subido es el del código subido. Con el "42" y la configuración por defecto,
+20x15 y semilla 42, el analizador da `0 real + 3 enclosed`, 27 bucles y
+*bonus-grade*. Con Kruskal, en el mismo tamaño y semilla, `84 + 3` en
+perfecto y `0 + 3` con 58 bucles en jugable; con `PATTERN=4`,
+*bonus-grade* y centro alcanzable en 9x7 y 20x15. Todas son las mismas
+cifras que en la reconstrucción, que era fiel también en el braiding.
 
 **Programa completo.** `python3 a_maze_ing.py config.txt` genera,
 escribe el fichero, dibuja y abre el menú. Los cinco errores de la hoja
@@ -48,9 +56,9 @@ y ocho casos más terminan con un mensaje claro y código 1 (ADR-024). El
 fichero que escribe el writer pasa el analizador: es lo que comprueba
 ahora `test_analyzer.py`, y con ello S1 queda cerrada.
 
-**Lo que no está bien todavía.** Con `PATTERN=4`, o cualquier texto de
-longitud impar, el analizador encuentra el centro bloqueado: lo
-resuelve ADR-025, decidida y sin implementar.
+**Lo que falta.** Ningún fichero de la entrega. Queda la fase final
+conjunta: S2 y S3 a mano con el `config.txt` del repo, los casos límite
+de C3, un clon limpio y el ensayo de defensa (§10).
 
 ---
 
@@ -79,12 +87,14 @@ resuelve ADR-025, decidida y sin implementar.
 | 017 | El validador no reutiliza lo que valida; 3x3 abierto = 12 muros interiores abiertos | Aceptada |
 | 018 | Analizador antes de B5: helpers provisionales en `tests/` | Aceptada |
 | 019 | Chequeos por modo: `E − V + C` sobre las libres; umbrales del analizador como suelo | Aceptada |
-| 020 | Generador: parámetros en el constructor, stubs como `GenerationError`, fallos internos reproducibles | Aceptada |
+| 020 | Generador: parámetros en el constructor, stubs como `GenerationError`, fallos internos reproducibles | Aceptada; ADR-027 retira la parte de los stubs |
 | 021 | Braiding: atascos forzados abriendo y cerrando; esquinas y centro sin callejones reales; `braid` garantiza los bucles | Aceptada |
 | 022 | Braiding: consultas puras, una sola lista de callejones contada por aritmética | Aceptada |
 | 023 | Fallos del braiding como errores internos; el generador no se fía del recuento de `braid` | Aceptada |
-| 024 | Vía B: se corrigen los ficheros de Lucas; el parser solo comprueba sintaxis y tipos | Aceptada |
-| 025 | Patrón con una columna libre sobre la columna central; ancho mínimo `4n + 4` con `n` impar | Aceptada, sin implementar |
+| 024 | Vía B: se adaptan los ficheros en la integración; el parser solo comprueba sintaxis y tipos | Aceptada |
+| 025 | Patrón con una columna libre sobre la columna central; ancho mínimo `4n + 4` con `n` impar | Aceptada, implementada (ADR-026) |
+| 026 | Implementación de ADR-025: la posición del patrón se busca, no se calcula | Aceptada |
+| 027 | Kruskal: union-find sobre `dict` por celda, unión por tamaño, `find` iterativo; `_carve` informa sus fallos como error interno | Aceptada |
 
 ---
 
@@ -94,16 +104,16 @@ resuelve ADR-025, decidida y sin implementar.
 .
 ├── a_maze_ing.py          entry point: argv, orquestación, errores [hecho]
 ├── config.txt             configuración por defecto        [hecho]
-├── Makefile               install/run/debug/clean/lint     [hecho]
+├── Makefile               install/run/.../package          [hecho]
 ├── requirements-dev.txt   herramientas de desarrollo       [hecho]
 ├── .flake8                exclusiones de flake8            [hecho]
 ├── mypy.ini               exclusiones de mypy              [hecho]
 ├── .gitignore             re-incluye el wheel de la raíz   [hecho]
 ├── .gitattributes         LF en todo el repo               [hecho]
 ├── pyproject.toml         construye mazegen-1.0.0          [hecho]
-├── mazegen-1.0.0-py3-none-any.whl                          [pendiente]
+├── mazegen-1.0.0-py3-none-any.whl  reproducible (ADR-028)  [hecho]
 ├── LICENSE.md             MIT                              [hecho]
-├── README.md                                               [pendiente]
+├── README.md              en inglés, vigilado por un test  [hecho]
 │
 ├── docs/
 │   ├── ARCHITECTURE.md    este fichero, se reescribe entero
@@ -112,9 +122,11 @@ resuelve ADR-025, decidida y sin implementar.
 │
 ├── mazegen/               ← REUTILIZABLE, esto es el wheel
 │   ├── __init__.py        fachada: MazeGenerator, Maze, errores
+│   ├── README.md          documentación del módulo           [hecho]
+│   ├── py.typed           marcador PEP 561                   [hecho]
 │   ├── errors.py          MazeError y subclases
 │   ├── maze.py            Maze, Direction, validate_geometry [hecho]
-│   ├── pattern.py         glifos, tamaño mínimo, estampado   [ADR-025 pendiente]
+│   ├── pattern.py         glifos, colocación, mínimo         [hecho]
 │   ├── solver.py          BFS → camino más corto             [hecho]
 │   ├── braiding.py        bucles, callejones, regla 3x3      [hecho]
 │   ├── validator.py       invariantes, los dos modos         [hecho]
@@ -123,7 +135,7 @@ resuelve ADR-025, decidida y sin implementar.
 │       ├── __init__.py    registro y get_algorithm()         [hecho]
 │       ├── base.py        Algorithm(ABC)                     [hecho]
 │       ├── backtracker.py DFS iterativo                      [hecho]
-│       └── kruskal.py     bonus, union-find                  [stub]
+│       └── kruskal.py     bonus, union-find                  [hecho]
 │
 ├── app/                   ← NO reutilizable
 │   ├── __init__.py        marcador de la capa de aplicación
@@ -133,14 +145,22 @@ resuelve ADR-025, decidida y sin implementar.
 │   └── menu.py            bucle interactivo                  [hecho]
 │
 └── tests/                 sin __init__.py (ADR-018)
+    ├── conftest.py        fixtures analyzer y judge          [hecho]
     ├── fixtures.py        laberinto 5x5 a mano               [hecho]
     ├── test_solver.py     BFS contra fuerza bruta            [hecho]
     ├── test_backtracker.py árbol de expansión, semilla       [hecho]
+    ├── test_kruskal.py    árbol de expansión, union-find     [hecho]
+    ├── test_kruskal_pipeline.py  Kruskal, generador y analizador [hecho]
+    ├── test_pattern.py    colocación, mínimos, el "42" intacto   [hecho]
+    ├── test_pattern_playable.py  analizador con textos impares   [hecho]
     ├── test_validator.py  cada chequeo, roto a propósito     [hecho]
     ├── test_braiding.py   braiding, validador como oráculo   [hecho]
     ├── test_generator.py  errores del pipeline               [hecho]
     ├── test_generator_playable.py  pipeline en modo jugable  [hecho]
     ├── test_analyzer.py   writer real vs analizador (S1)     [hecho]
+    ├── test_analyzer_modes.py  cada algoritmo, ambos modos   [hecho]
+    ├── test_package_docs.py  ejecuta la doc del módulo       [hecho]
+    ├── test_readme.py     lo que la hoja castiga con un 0    [hecho]
     ├── test_config_parser.py  la hoja, caso a caso           [hecho]
     ├── test_writer.py     formato exacto del fichero         [hecho]
     ├── test_renderer.py   cada muro, entrada, salida, camino [hecho]
@@ -149,13 +169,15 @@ resuelve ADR-025, decidida y sin implementar.
 
 `tests/` no es un paquete y sus módulos no se importan entre sí: con
 `mypy .`, importar un módulo de `tests/` desde otro da *Source file
-found twice* (ADR-018). Si hacen falta helpers compartidos, van a
-`tests/conftest.py`.
+found twice* (ADR-018). Lo compartido va en `tests/conftest.py` como
+fixture: `analyzer` importa el analizador o salta el test si no hay
+copia local, y `judge` escribe un laberinto con el writer real y
+devuelve el informe y el veredicto (ADR-026).
 
 `maze_analyzer.py` no está en el árbol: es de la intra y está en el
 `.gitignore`. Se puede tener una copia local en la raíz, y pasa el lint
-igualmente. Si B9 lo necesita dentro del repo, basta con quitar esa
-línea del `.gitignore` (ADR-013).
+igualmente. Sin ella, los tests que lo usan se saltan; con ella, en el
+repo de trabajo, no se salta ninguno (ADR-013, ADR-018).
 
 ### 3.1 Targets del Makefile
 
@@ -169,9 +191,12 @@ línea del `.gitignore` (ADR-013).
 | `lint` | `flake8 .` y `mypy .` con los flags exactos del subject |
 | `lint-strict` | `flake8 .` y `mypy . --strict` |
 | `test` | `python -m pytest` (no `pytest`: ver ADR-013) |
+| `package` | Borra `build/` y el wheel anterior y construye `mazegen-1.0.0-py3-none-any.whl` en la raíz, con fecha fija: mismo código, mismos bytes (ADR-028) |
+| `package-test` | Instala el wheel en un virtualenv nuevo en `/tmp`, copia `a_maze_ing.py`, `app/` y la configuración, comprueba que `mazegen` viene de `site-packages` y ejecuta el programa |
 
-El target de empaquetado se añade con B6, cuando exista
-`pyproject.toml`.
+Regla: todo cambio en `mazegen/` va con `make package` en el mismo
+commit. Comprobarlo es inmediato: tras `make package`, `git status`
+tiene que salir vacío.
 
 ---
 
@@ -235,9 +260,9 @@ class MazeGenerator:
         # InvalidGeometryError o ConfigError: todo parámetro imposible,
         # entrada o salida sobre el "42" incluidas, falla aquí.
     def generate(self) -> Maze
-        # GenerationError: algoritmo aún sin implementar, o bug del
-        # braiding o del validador (el mensaje lleva los argumentos, la
-        # semilla y el número de llamada).
+        # GenerationError: bug del algoritmo, del braiding o del
+        # validador (el mensaje lleva los argumentos, la semilla y el
+        # número de llamada). No queda ningún algoritmo stub.
     maze, seed, algorithm, pattern_cells, pattern_skipped
         # pattern_cells y pattern_skipped, válidos desde el constructor
 
@@ -320,8 +345,9 @@ Config validada
   → MazeGenerator(...): tamaño, geometría, algoritmo, y entry/exit/
     esquinas contra un "42" estampado en blanco (ADR-020)
   → generate(): Maze vacío (todos los muros cerrados)
-  → estampar "42"      ¿no cabe? → pattern_skipped = True, sigue
-  → árbol de expansión sobre las celdas libres
+  → estampar el patrón, con la columna (W − 1) // 2 libre (ADR-025)
+                       ¿no cabe? → pattern_skipped = True, sigue
+  → árbol de expansión sobre las celdas libres (backtracker o Kruskal)
   → si PERFECT=False: braid (0 callejones reales, ≥ 2 bucles)
     + ensure_open (esquinas y centro); un fallo aquí es un bug
   → validator (siempre, también en producción)
@@ -354,11 +380,11 @@ comunes van primero porque `E − V + C` y la división de callejones solo
 coinciden con el analizador en un laberinto conexo. Mide siempre con
 código propio (ADR-017). Cuesta unos 2 ms en 20x15 y 80 ms en 100x100.
 
-Errores del generador (ADR-020, ADR-023). Un parámetro imposible falla
-en el constructor. Un algoritmo que todavía es stub (Kruskal) sale como
-`GenerationError` con un mensaje que dice qué falta. Un fallo del
-braiding o del validador es un bug nuestro: sale como *internal error,
-please report it*, con todo lo que reconstruye el laberinto. El
+Errores del generador (ADR-020, ADR-023, ADR-027). Un parámetro
+imposible falla en el constructor. Un fallo del algoritmo, del braiding
+o del validador es un bug nuestro: sale como *internal error, please
+report it*, con todo lo que reconstruye el laberinto. Ya no quedan
+algoritmos stub, y un test sobre todo el registro lo garantiza. El
 generador ignora lo que `braid` dice de sí mismo: lo mide el validador.
 Nada sale del generador que no sea `MazeError`.
 
@@ -432,9 +458,9 @@ falte pone la nota a 0.
 
 | Apartado de la hoja | Dónde se cubre | Estado |
 |---|---|---|
-| Ficheros presentes: `README.md`, `a_maze_ing.py`, `mazegen-*.whl`, fichero de configuración, fuentes para reconstruir el paquete | raíz del repo | hechos `a_maze_ing.py`, `config.txt` y `pyproject.toml`; faltan README y wheel |
-| Norm (`flake8`) y `mypy` sobre los ficheros Python | `make lint`, `make lint-strict` | pasa en los 30 ficheros, también `--strict`, en el repo real |
-| README con sus 11 elementos obligatorios | `README.md` | pendiente, ver 8.1 |
+| Ficheros presentes: `README.md`, `a_maze_ing.py`, `mazegen-*.whl`, fichero de configuración, fuentes para reconstruir el paquete | raíz del repo | todos hechos y subidos |
+| Norm (`flake8`) y `mypy` sobre los ficheros Python | `make lint`, `make lint-strict` | pasa en los 38 ficheros, también `--strict`, en el repo real |
+| README con sus 11 elementos obligatorios | `README.md` | hecho; `test_readme.py` vigila la primera línea, las secciones, su orden y la documentación del módulo (ADR-029) |
 | Laberinto aleatorio mostrado al arrancar con la config por defecto | `a_maze_ing.py` + `renderer.py` | hecho; todo muro, entrada y salida comprobados en `test_renderer.py` |
 | Menú: regenerar, mostrar/ocultar camino, cambiar color de muros | `menu.py` | hecho, más guardar (ADR-009) |
 | Formato del fichero de configuración, claves en minúscula incluidas | `config_parser.py` | hecho, ver 7 |
@@ -446,18 +472,20 @@ falte pone la nota a 0.
 | Todas las celdas alcanzables salvo el "42" | `validator.is_connected` | hecho (A5a) |
 | Muros en todo el contorno | invariante 2 + `validator.borders_closed` | estructural y comprobado (A5a) |
 | Sin zonas abiertas de 3x3, y saber explicar cómo se verifica | `validator.open_areas_3x3` + `braiding.would_open_3x3` | hechos, 12 muros interiores (ADR-017), como mucho 6 bloques por muro (ADR-022) |
-| "42" presente, o mensaje en terminal si no cabe | `pattern.py` + aviso en `a_maze_ing.py` | hecho; con textos de longitud impar falta ADR-025 |
+| "42" presente, o mensaje en terminal si no cabe | `pattern.py` + aviso en `a_maze_ing.py` | hecho, también con textos de longitud impar: el aviso da el mínimo nuevo (ADR-026) |
 | Laberinto perfecto si `PERFECT=True` | backtracker (ADR-016) + `validator.count_loops == 0` | hecho y comprobado en cada generación (ADR-019) |
 | Tablero Pac-Man si `PERFECT=False`: conexo, esquinas y centro, ≥ 2 bucles, pocos callejones | `braiding.py` + `validator` (ADR-019, ADR-021) | hecho y comprobado en cada generación |
-| Bonus: ningún callejón real (`--max-dead-ends 0`) | `braid(..., max_dead_ends=0)` | hecho, medido en 865 tableros con el analizador (ADR-022) |
+| Bonus: ningún callejón real (`--max-dead-ends 0`) | `braid(..., max_dead_ends=0)` | hecho, medido en 865 tableros con el analizador (ADR-022), también sobre Kruskal (ADR-027) |
+| Bonus: varios algoritmos de generación | `ALGORITHM=backtracker` o `kruskal` (ADR-016, ADR-027) | hecho; los dos pasan el analizador en ambos modos (`test_analyzer_modes.py`) y el README los describe |
 | Mismo laberinto con la misma semilla | ADR-006 + clave `SEED` + solver determinista (ADR-015) | hecho en el motor, también con braiding |
 | Parámetros inconsistentes (entry/exit fuera, tamaño negativo) | `validate_geometry` en el constructor | hecho |
-| Reconstruir el paquete en un virtualenv e instalarlo en otro | `pyproject.toml` + `build` en `requirements-dev.txt` + README | `pyproject.toml` hecho y probado fuera del repo en la reconstrucción; falta en el repo y el README |
+| Reconstruir el paquete en un virtualenv e instalarlo en otro | `make package`, `make package-test` + Instructions del README (ADR-028) | hecho y probado en el repo, fuera de él y con el `a_maze_ing.py` real; el README da los comandos a mano |
 
 ### 8.1 Elementos obligatorios del README
 
-Los once. Que falte uno solo es un 0, así que se revisan en la fase
-final con la hoja delante:
+Los once. Que falte uno solo es un 0. Están todos, y
+`tests/test_readme.py` comprueba su presencia (ADR-029); en la fase final
+se revisa además su contenido con la hoja delante:
 
 1. Primera línea en cursiva, exactamente: *This project has been
    created as part of the 42 curriculum by `<login1>`, `<login2>`.*
@@ -475,7 +503,10 @@ final con la hoja delante:
 11. Qué funcionó bien, qué mejoraríamos, y qué herramientas concretas
     usamos.
 
-El punto 8 tiene ya material: el contrato de `shortest_path` de la sección 4.
+El punto 8 es la copia de `mazegen/README.md`, la documentación que va
+dentro del wheel; si se edita una copia sin la otra, falla el test. La
+sección *Planning and how it evolved* describe el proyecto hasta el 31
+de octubre: se completa en la fase final.
 
 ### 8.2 Qué mide exactamente el analizador
 
@@ -495,8 +526,10 @@ se juega, así que conviene conocerlas antes de implementar:
   "42" nunca las bloquea todas: el bloque de 7 de ancho pone su
   columna de separación, siempre libre, justo en la columna central de
   la rejilla, tanto para anchuras pares como impares. Comprobado para
-  todos los tamaños de 9x7 a 60x60. Con un número impar de glifos sí
-  las bloquea, medido con `PATTERN=4`: lo corrige ADR-025.
+  todos los tamaños de 9x7 a 60x60. Con un número impar de glifos, el
+  bloque centrado sí las bloqueaba (medido con `PATTERN=4`). Desde
+  ADR-025 la columna central queda libre con cualquier texto, y
+  `tests/test_pattern.py` lo comprueba.
 - **Celdas aisladas.** Cuenta como corredor inalcanzable cualquier
   celda fuera de la región que no esté totalmente cerrada. Una celda
   del "42" está totalmente cerrada y no cuenta; una celda normal que
@@ -518,6 +551,9 @@ se juega, así que conviene conocerlas antes de implementar:
 
 **Vía B, aplicación y entrega** — Lucas: `config_parser.py`,
 `writer.py`, `renderer.py`, `menu.py`, empaquetado, licencia, README.
+La integración de las dos vías se hizo juntos, y durante ella se
+ajustaron los ficheros de la aplicación al contrato (ADR-024). B6, B8 y B9
+se cerraron juntos el 31 de octubre.
 
 **Fase 0, común** — hecha por ambos: `Makefile`, `.gitignore`,
 `.gitattributes`, `requirements-dev.txt`, `.flake8`, `mypy.ini` y
@@ -539,33 +575,38 @@ movimientos.
 
 ## 10. Pendiente de cerrar
 
-- **Implementar ADR-025 en `pattern.py`.** Colocar el bloque con una
-  columna libre sobre `(W − 1) // 2`, nuevo mínimo `4n + 4` con `n`
-  impar en `minimum_grid` y `fits`, y sus tests: columna central libre
-  para textos de 1 a 3 glifos en todos los tamaños desde el mínimo, y
-  analizador *usable* con `PATTERN=4` en 9x7 y 20x15. El "42" no debe
-  cambiar ni un bit. Es la primera tarea de la próxima sesión.
-- **B6, el wheel.** Construirlo en el repo, dejarlo en la raíz,
-  comprobar con `git status` que se sube, añadir su target al
-  `Makefile` (§3.1) y probar la instalación en otra carpeta (§11).
-- **B8, el README.** Las 11 secciones de §8.1, con la autoría de la vía
-  B como está en §9.
-- **S2 y S3 a mano en el repo.** `make run` con `PERFECT=True` y con
-  `PERFECT=False`, y el `maze.txt` resultante por el analizador (el
-  segundo con `--max-dead-ends 0`). Los tests ya lo cubren; esto es lo
-  que hará el evaluador. Y el repaso conjunto de `maze.py` y
-  `braiding.py`, que sigue siendo innegociable.
+Todo es de la fase final, que se hace entre los dos (PLAN, bloque 5).
+
+- **S2 y S3 a mano con el `config.txt` del repo.** `make run` con
+  `PERFECT=True` y con `PERFECT=False`, y el `maze.txt` por el
+  analizador, el segundo con `--max-dead-ends 0`. Los tests lo cubren y
+  el 31 de octubre se hizo con configuraciones propias; esto es lo que
+  hará el evaluador, y después se pone la etiqueta.
+- **C3, los casos límite** de PLAN §6, uno a uno contra el programa
+  real. Ctrl+C y Ctrl+D ya están comprobados.
+- **Un clon limpio.** `git clone` en otra carpeta, `make install`,
+  `make lint-strict`, `make test` (ahí los tests del analizador se
+  saltan, porque no está en el repo) y `make package-test`. Es lo más
+  parecido a la máquina del evaluador.
+- **C4, el ensayo de defensa.** Cada uno explica los módulos del otro,
+  incluidas las partes escritas con ayuda de la IA, con la hoja de
+  evaluación delante.
+- **El repaso conjunto de `maze.py` y `braiding.py`**, que sigue
+  siendo innegociable (§9).
 - **Semilla cuando no hay `SEED`.** Si el generador eligiera y guardara
   su propia semilla, cualquier fallo interno sería reproducible y el
   menú podría mostrarla. Cambia el significado de la propiedad `seed`
-  del contrato, así que se decide con Lucas (ADR-020).
-- **T0.3, detalles del flujo git.** Propuesta: ramas con el ID de la
-  tarea (`a3-backtracker`, `b1-config-parser`) y repo de trabajo en
-  GitHub, porque el repo de entrega de la intra no tiene PR, con el de
-  la intra como segundo remote para el push final.
+  del contrato, así que se decide juntos (ADR-020). Opcional.
+- **T0.3, el flujo git.** Repo de trabajo en GitHub y el de la intra
+  como segundo remote para el push final. Falta comprobar que el push a
+  la intra lleva el wheel y que el `.gitignore` no deja fuera nada de la
+  entrega.
 - **`maze_analyzer.py` en el repo o fuera.** Hoy está en el
-  `.gitignore`, y `test_analyzer.py` se salta si no hay copia local
-  (ADR-018).
+  `.gitignore`. Hay dos cargadores: el de `test_analyzer.py` y la
+  fixture `analyzer` de `conftest.py`. Pasar `test_analyzer.py` a la
+  fixture es opcional; se decide en C1.
+- **La sección *Planning and how it evolved* del README**, que se cierra
+  con lo que pase hasta la entrega.
 
 Cuando aparezca una decisión nueva se anota aquí, y al decidirse se
 mueve a `DECISIONS.md` como ADR.
@@ -574,24 +615,23 @@ mueve a `DECISIONS.md` como ADR.
 
 ## 11. Riesgos conocidos
 
-- **El wheel y el `.gitignore`.** Mitigado: `!/mazegen-*.whl` lo
-  re-incluye incluso contra un `.gitignore` global que excluya `*.whl`
-  (probado). Aun así, tras el primer build, comprobar con `git status`
-  que el fichero se está subiendo de verdad.
+- **Un wheel desfasado.** Si se cambia `mazegen/` sin `make package`,
+  el wheel subido deja de corresponder al código. Se detecta al
+  instante: tras `make package`, `git status` no sale vacío (ADR-028).
 - **Probar el wheel fuera del repositorio.** Con el layout plano,
   ejecutar desde la raíz importa siempre la carpeta local, nunca el
-  paquete instalado. La prueba de instalación que pide la hoja solo
-  demuestra algo si se hace en otra carpeta, copiando `a_maze_ing.py` y
-  el fichero de configuración (ADR-008).
+  paquete instalado. La prueba solo demuestra algo en otra carpeta, y
+  hay que copiar también `app/`: `make package-test` lo hace (ADR-028).
+- **`make package` necesita red** la primera vez, para descargar
+  `setuptools` en su entorno aislado.
 - **`make install` necesita el módulo `venv` y red.** En Debian y
   Ubuntu, `python3 -m venv` exige el paquete `python3-venv`. Sin
   comprobar todavía en las máquinas del campus.
-- **El braiding y los árboles de Kruskal (A8).** Con árboles frondosos
-  la apertura forzada sí se usa (25 de 11.530, sobre todo en 3x3), y
-  está probada con árboles tipo Kruskal hechos en los tests. Cuando
-  exista `kruskal.py`, repetir la medida con el algoritmo real y pasar
-  su salida por el analizador con `--max-dead-ends 0`.
-- **Los ficheros de los dos y los finales de línea.** Los de Lucas
+- **El braiding y los árboles de Kruskal.** Cerrado (ADR-027): con el
+  algoritmo real, la apertura forzada se usa en 1 de cada 7 a 9 rejillas
+  de 3x3, y todos los tableros dan *bonus-grade*. Un test con un espía
+  exige que se siga llegando a ella.
+- **Los ficheros de los dos y los finales de línea.** Algunos de ellos
   venían en CRLF. `.gitattributes` lo resuelve en el repo; si alguno
   sigue en CRLF en el disco tras `git add --renormalize .`, revisar la
   configuración `core.autocrlf` de esa máquina.
@@ -602,9 +642,32 @@ mueve a `DECISIONS.md` como ADR.
 - **El modo jugable cuesta más en rejillas grandes.** 876 ms en 100x100
   frente a 355 del perfecto, sobre todo por el validador. Aceptable para
   el programa; anotado por si alguien prueba tamaños de varios cientos.
-- El empaquetado es lo único del proyecto que no cubre ningún módulo
-  del cursus: contar 2 o 3 horas de aprendizaje, no 30 minutos.
-- Los bonus solo cuentan si **todo** lo anterior está correcto. No
-  tiene sentido tocar Kruskal mientras falte un elemento del README.
+- Los bonus solo cuentan si **todo** lo anterior está correcto. Con los
+  ficheros de la entrega completos, lo único que puede poner un 0 es una
+  terminación inesperada en un caso límite (C3) o no saber explicar una
+  parte del código en la defensa (C4).
 
 ---
+
+## 12. Cómo arrancar una conversación nueva
+
+Este fichero, `DECISIONS.md`, `PLAN.md` y el código del módulo concreto
+son todo el contexto necesario. Con las dos vías terminadas, lo que
+queda toca sobre todo la aplicación: para los casos límite de C3 bastan
+`a_maze_ing.py`, `app/config_parser.py`, `app/menu.py` y `config.txt`.
+El contrato viaja mejor que la charla. Lo que no funciona es contar la
+arquitectura de memoria, porque ahí es donde se cuelan las
+divergencias.
+
+Al contexto del proyecto van los tres documentos, `maze.py` y el
+`maze_analyzer.py` de la intra. `PLAN.md` va porque es el único sitio
+donde está qué pide cada tarea y de qué depende: sin él, un chat nuevo
+tiene que adivinar qué es A7. A cambio, los tres documentos se
+actualizan juntos al cerrar cada sesión; un plan con casillas viejas en
+el contexto es peor que no tenerlo.
+
+Los stubs y los módulos recién terminados no van al contexto: los stubs
+cambian en cuanto se implementan, y de un módulo terminado lo que
+necesitan los demás es su contrato, que ya está en la sección 4. Los
+ficheros que hacen falta para una tarea concreta se pegan en el primer
+mensaje de esa conversación.
