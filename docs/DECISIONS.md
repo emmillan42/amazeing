@@ -990,7 +990,7 @@ perfecto nunca llama al braiding.
 
 ## ADR-024 — Vía B: se integran los ficheros de la vía B; el parser solo comprueba sintaxis y tipos
 
-**Fecha:** 2026-10-30 · **Estado:** Aceptada
+**Fecha:** 2026-10-30 · **Estado:** Aceptada; el parser comprueba además el límite superior de tamaño desde ADR-030 (2026-10-31)
 
 **Contexto.** Con la vía A verificada en el repo, `make lint` solo
 fallaba en `app/`, porque se estaba tranbajando con los stubs del
@@ -1276,7 +1276,7 @@ ninguno saltado.
 
 ## ADR-028 — El wheel se construye reproducible en la raíz, lleva su documentación y `py.typed`, y se prueba fuera del repo copiando también `app/`
 
-**Fecha:** 2026-10-31 · **Estado:** Aceptada · Completa ADR-008
+**Fecha:** 2026-10-31 · **Estado:** Aceptada · Completa ADR-008; ADR-031 añade la protección contra CRLF (2026-10-31)
 
 **Contexto.** B6. El `pyproject.toml` estaba hecho, pero faltaban el
 wheel en la raíz y su target. Al releer el capítulo VI del subject y la
@@ -1406,3 +1406,210 @@ ficheros, y Ctrl+C sale del menú sin traceback.
 `mazegen/README.md` tiene que repetirse en el README principal, o falla
 el test. Si cambia la planificación hasta la entrega, la sección
 *Planning and how it evolved* se actualiza en la fase final.
+
+---
+
+## ADR-030 — C3: el aviso del "42" se queda en pantalla, `WIDTH` y `HEIGHT` tienen un máximo, y cuatro entradas más dejan de terminar en traceback o en un mensaje confuso
+
+**Fecha:** 2026-10-31 · **Estado:** Aceptada · Matiza ADR-024
+
+**Contexto.** C3: la lista de casos límite de PLAN §5, recorrida contra
+el programa real. Los casos de la lista daban mensaje claro y código 1,
+pero leyendo el código y repitiendo cada caso aparecieron cinco
+problemas fuera de lo que cubrían los tests.
+
+**Medido antes de decidir**, en el repo real, con el código anterior:
+
+- *El aviso del "42" era invisible.* Con `WIDTH=8`, el aviso salía por
+  `stderr` y la línea siguiente de la salida era `\033[H\033[J`, el
+  borrado de pantalla con el que empieza cada frame del menú. La hoja
+  pide un mensaje en terminal cuando el patrón no cabe, y ese mensaje
+  no lo llegaba a ver nadie.
+- *Un tamaño enorme agotaba la memoria.* `WIDTH=100000000`, con la
+  memoria limitada a 2 GB, terminaba en `MemoryError` desde
+  `Maze.__init__`, que crea `height` listas de `width + 1` booleanos al
+  estampar el patrón en blanco (ADR-020). Sin límite, el sistema mata el
+  proceso: una terminación inesperada.
+- *Bytes que no son UTF-8 en el menú.* Con `stdin` decodificado en modo
+  estricto, que es lo que hace Python con un locale real como
+  `en_US.UTF-8`, `printf '\377\n' | python3 a_maze_ing.py config.txt`
+  terminaba en `UnicodeDecodeError`. En casa no se reproduce, porque con
+  `C.UTF-8` Python decodifica con `surrogateescape` y el menú respondía
+  `unknown choice '\udcff'`; se reprodujo forzando
+  `PYTHONIOENCODING=utf-8:strict`.
+- *`ENTRY=(0,0)` daba* `ENTRY must be an integer, got '(0'`: cita medio
+  token y no dice que el formato es `x,y`. Es el quinto error de la hoja.
+- *Un fichero guardado con BOM* fallaba en la primera línea, aunque
+  fuera un comentario: `line 1: expected KEY=VALUE, got '\ufeff# A-Maze-ing…'`.
+
+**Decisión.**
+
+- *El aviso.* `pattern_warning()`, en `a_maze_ing.py`, solo construye
+  el texto. `main` lo imprime por `stderr`, que es lo que queda si el
+  programa termina antes del menú (un fichero de salida que no se puede
+  escribir), y se lo pasa al menú: `Menu(generator, config, *,
+  notice="")` lo muestra en todas las pantallas, bajo el laberinto. Es
+  persistente porque la condición también lo es: regenerar mantiene el
+  tamaño. Sin `notice`, el frame es idéntico al anterior.
+- *El tamaño.* `MAX_SIDE = 500` en `app/config_parser.py`, con
+  `parse_side` para `WIDTH` y `HEIGHT`: `WIDTH must be at most 500, got
+  …`. Solo el máximo: el mínimo es una regla de lo que es un laberinto y
+  sigue en el generador; el máximo es un presupuesto de este programa,
+  tiempo y memoria. Esto matiza ADR-024: el parser comprueba sintaxis,
+  tipos y los límites del programa; lo que hace posible un laberinto lo
+  sigue comprobando `MazeGenerator`.
+- *El menú* trata un `UnicodeDecodeError` como una elección inválida:
+  `unreadable input (not UTF-8), pick 1 to 5`.
+- *Las tuplas.* `parse_coords` desempaqueta y convierte dentro de un
+  solo `try`: una lista de longitud incorrecta y un `int()` que falla
+  lanzan los dos `ValueError`, e `int()` ya ignora los espacios. Toda
+  tupla mal formada da `must be two integers written x,y, got …`, con
+  el valor completo.
+- *El BOM.* El fichero se lee con `encoding="utf-8-sig"`, que lee igual
+  un UTF-8 normal.
+- La sección del fichero de configuración del README documenta los dos
+  límites y el aviso.
+
+**Alternativas descartadas.**
+- *No borrar la pantalla en el primer frame.* El aviso desaparecería a
+  la primera pulsación.
+- *Que el menú calcule el aviso desde `pattern_skipped`.* El texto
+  quedaría escrito en dos sitios.
+- *Pedir "pulsa Enter" antes del menú.* Una pulsación de más para el
+  evaluador, y rompe las sesiones guionizadas de `test_menu.py`.
+- *El máximo en `mazegen`.* Cambiaría el contrato de la librería y
+  obligaría a reconstruir el wheel, y limitaría a quien la reutilice.
+  En `app/`, el wheel no cambia.
+- *Capturar `MemoryError`.* Con la sobreasignación de memoria de Linux,
+  el sistema puede matar el proceso antes de que llegue la excepción.
+- *Un máximo por número de celdas.* El mensaje no podría nombrar la
+  clave que el usuario tiene que cambiar.
+
+**Fuera de alcance, a propósito**: lo que no se provoca editando el
+fichero de configuración o tecleando en el menú, que es lo que hace el
+evaluador. `/dev/zero` como configuración, `kill -9`, `Ctrl+\`. Tampoco
+`OUTPUT_FILE=config.txt`: no da traceback, pero sobrescribe la
+configuración con el laberinto.
+
+**Medido.** El valor de `MAX_SIDE`, generando en modo perfecto y
+jugable con semilla 42:
+
+| Tamaño | Perfecto | Jugable |
+|---|---|---|
+| 100x100 | 0,2 s | 0,3 s |
+| 200x200 | 0,7 s | 1,3 s |
+| 400x400 | 3,5 s | 5,6 s |
+| 500x500 | — | 8,8 s |
+
+Al doblar el lado, el tiempo se multiplica por unos 4,3: casi lineal en
+celdas. Pico de memoria de 63 MB hasta 400x400. Medido en el portátil
+de Emmanuel; la medida anterior, 876 ms en 100x100 jugable, se tomó
+en una máquina unas tres veces más lenta. Criterio: el tablero máximo, en modo
+jugable, por debajo de unos 20 segundos.
+
+Después de los arreglos, en el repo real: `WIDTH=100000000` da el error
+al instante; el aviso aparece dos veces, en `stderr` y en la pantalla
+del menú; `ENTRY=(0,0)` da el mensaje nuevo; el fichero con BOM abre el
+menú; con `stdin` estricto no hay traceback. Los mensajes del motor no
+cambian: `ENTRY (6, 5) falls on the '42' pattern, choose a free cell`,
+`unknown algorithm 'prim', pick one of backtracker, kruskal`, `cannot
+write output file 'no/dir/m.txt': No such file or directory`.
+
+`tests/test_edge_cases.py` recorre la lista de C3 a través de `main()`,
+en el mismo proceso: una excepción que escape de `main` falla el test.
+Cada caso parte del `config.txt` del repo y cambia una sola cosa. Los
+mensajes del parser se comprueban literalmente; los del generador, solo
+por el prefijo `error:`. El caso de tamaño usa `MAX_SIDE + 1`, para que
+quitar el límite no agote la memoria del que pasa los tests. En la
+reconstrucción, con el código anterior fallaban 9 de sus 38 tests, y
+cada uno de los cinco arreglos lo detecta alguno. En el repo real: 845
+tests y lint en 39 ficheros. Un test de `test_config_parser.py` esperaba
+el mensaje antiguo de `EXIT=19,x` y se actualizó.
+
+**Consecuencias.** Dos cambios de contrato en la aplicación: el
+parámetro `notice` del menú y `MAX_SIDE`. `mazegen/` no cambia, ni el
+wheel. Si el tablero de 500x500 pasa de 20 segundos en las máquinas del
+campus, `MAX_SIDE` baja a 400: es una constante, y su test se ajusta
+solo.
+
+---
+
+## ADR-031 — Clon limpio: el wheel se construye desde la carpeta de trabajo, así que `make package` rechaza los ficheros en CRLF; el analizador se queda fuera; GitHub es la única fuente de verdad
+
+**Fecha:** 2026-10-31 · **Estado:** Aceptada · Completa ADR-028
+
+**Contexto.** C1 y C2: clonar el repo de GitHub en una carpeta vacía y
+repetir todo lo que hará el evaluador. En el clon, `make package`
+produjo un wheel distinto del commiteado. La única diferencia era el
+`LICENSE.md` de dentro: 1091 bytes frente a 1080, los 11 retornos de
+carro de un fichero de 11 líneas.
+
+**Causa.** `make package` construye desde la carpeta de trabajo, no
+desde lo commiteado. En la de Emmanuel había siete ficheros en CRLF,
+todos llegados desde la máquina de Lucas: `LICENSE.md`,
+`pyproject.toml`, `a_maze_ing.py` y los cuatro de `app/`.
+`.gitattributes` los guarda en LF en el repo, así que `git status` no
+los mostraba, y la comprobación de ADR-028 tampoco podía verlo: en esa
+carpeta, cada `make package` leía el mismo `LICENSE.md` en CRLF y daba
+el mismo wheel. Solo una carpeta con los ficheros tal como están en el
+repo saca la diferencia. VS Code, con `files.eol` en `auto`, conserva el
+final de línea que tenía cada fichero al abrirlo.
+
+**Decisión.**
+
+- **Se reconstruye el wheel** desde los ficheros en LF. En la carpeta de
+  trabajo, ya limpia, y en el clon, el hash es el mismo
+  (`b1817f50…`): dos carpetas distintas, mismos bytes, que es lo que
+  promete ADR-028.
+- **`make package` se niega a construir** si alguno de los ficheros que
+  entran en el paquete (`mazegen/`, `LICENSE.md`, `pyproject.toml`) tiene
+  un retorno de carro, y dice cuál y cómo arreglarlo: `sed -i
+  's/\r$//' FILE`. Busca con `grep -rlI`, que se salta los binarios
+  como los `.pyc`. `package-test` depende de `package` y queda
+  protegido igual.
+- **`maze_analyzer.py` se queda fuera del repo.** Es código de la intra,
+  el evaluador trae el suyo, y así el clon limpio es lo que verá él. Los
+  dos cargadores (el de `test_analyzer.py` y la fixture de
+  `conftest.py`) se quedan: unificarlos en la fase final es un cambio
+  estético sin efecto en la nota.
+- **El flujo de entrega.** Solo se puede subir a vogsphere desde un
+  ordenador del campus. GitHub es la única fuente de verdad: en el
+  campus se clona GitHub, se añade el remote de la intra, se sube, y se
+  comprueba clonando la intra en una carpeta vacía. Un arreglo
+  descubierto en el campus va primero a GitHub y después a la intra; al
+  revés, los historiales divergen. Si el `HEAD` del servidor apunta a
+  `master`, se sube con `main:master`.
+- **Etiquetas anotadas.** `v1.0.0-rc1` en `2500735`, el código
+  verificado a mano en S2 y S3 antes de los arreglos de C3; `v1.0.0`, en
+  el commit que se entregue.
+- `files.eol` en `\n` en el VS Code de los dos.
+
+**Alternativas descartadas.**
+- *Comprobar con `git ls-files --eol`.* Depende de git y mira todo el
+  repo, no lo que entra en el paquete.
+- *Normalizar los ficheros dentro del build.* Escondería el problema en
+  vez de señalarlo.
+- *No tocar nada y hacer siempre un clon limpio antes de empaquetar.*
+  Hoy funcionó porque estaba en el plan; depende de que alguien se
+  acuerde.
+- *Proponer `rm FILE && git checkout -- FILE` como arreglo.* Perdería
+  los cambios sin commitear de ese fichero; `sed` los conserva.
+
+**Medido.** En el clon de GitHub: los siete ficheros obligatorios en el
+repo, y en `git ls-files --eol` solo el wheel y `mazegen/py.typed`, que
+está vacío. `make lint` y `make lint-strict` sin errores en 38 ficheros,
+con flake8 7.4.1 y mypy 2.4.0. `make test`: 796 passed y 34 skipped sin
+el analizador; con una copia, 845 passed. `make package-test` pasa,
+`make clean` conserva el wheel, y tras el commit del wheel nuevo
+(`4697ca8`), `make package` deja `git status` vacío también en el clon.
+S2 y S3 a mano, antes: *PERFECT maze* con 280 celdas alcanzables y 0
+bucles, el fichero con 15 líneas de 20 caracteres, la misma semilla da
+el mismo fichero, y en modo jugable *bonus-grade* con `0 real + 3
+enclosed` y 31 bucles. La protección, en la reconstrucción: deja
+pasar una carpeta limpia con un `.pyc` que contiene un retorno de
+carro, se para con un `.py` en CRLF, y vuelve a pasar tras el `sed`.
+
+**Consecuencias.** Queda la parte de C1 que solo se puede hacer en el
+campus: subir a vogsphere, clonarlo y repetir allí las comprobaciones,
+que es el entorno del evaluador. Después de cada `pull`, conviene
+comprobar `git ls-files --eol | awk '$2 == "w/crlf"'`.

@@ -12,10 +12,10 @@ de unas 3 horas. Poned las fechas encima según vuestra entrega.
 de la vía B, Lucas: una tarea de la vía B sin ✅ puede estar hecha y sin
 anotar.
 
-Última actualización: 31 oct 2026 · cerradas T0.1, T0.2, A4, A3, A5a,
-A5b, A6, A7a, A7b, A8, A9 y toda la vía B (B1 a B9; ADR-024, ADR-028,
-ADR-029) · S1 cerrada · **vías A y B terminadas**: queda la fase final
-conjunta.
+Última actualización: 31 oct 2026 · vías A y B terminadas · fase
+final: S2, S3, T0.3, C2 y C3 cerradas (ADR-030, ADR-031); C1 cerrada
+salvo la subida a vogsphere, que se hace en el campus · **queda la
+subida a la intra y C4**.
 
 ---
 
@@ -29,17 +29,18 @@ resto salga desigual.
 
 | Vía | Estimado | Cerrado | Restante |
 |---|---|---|---|
-| Fase 0 | 2 h | 1 h 30 (T0.1, T0.2) | 30 min (T0.3) |
+| Fase 0 | 2 h | 2 h (T0.1, T0.2, T0.3) | — |
 | Vía A (motor) | 16 h + 3 h de bonus | 19 h (A4, A3, A5a, A5b, A6, A7a, A7b, A9, A8) | — |
 | Vía B (aplicación y entrega) | 22 h | 22 h (B1 a B9) | — |
-| Fase final conjunta | 9 h | — | 9 h |
-| **Total** | **~52 h** con bonus | 42 h 30 | **~9 h 30** |
+| Fase final conjunta | 9 h | 5 h (S2, S3, C2, C3, casi todo C1) | ~3 h 30 |
+| **Total** | **~52 h** con bonus | 48 h | **~3 h 30** |
 
-*Estimación revisada el 31 de octubre:* entre 6 y 9 horas, unas 7 h 30
-lo más probable. C1 y C2 ya están casi hechos (la integración se
-resolvió en ADR-024, y el lint está a cero en 38 ficheros), pero C4
-costará más de lo previsto: cada uno tiene que poder explicar el código
-del otro, braiding y union-find incluidos. El detalle está en el bloque
+*Estimación revisada el 31 de octubre, al cerrar C3:* quedan unas 3 h
+30: media hora en el campus para subir a vogsphere y comprobarlo, y unas
+3 h de C4, porque cada uno tiene que poder explicar el código del otro,
+braiding, union-find y los arreglos de C3 incluidos. C3 costó lo
+previsto, 3 h, y el clon limpio sacó un problema que nadie esperaba: el
+wheel con la licencia en CRLF (ADR-031). El detalle está en el bloque
 5.
 
 Las horas cerradas son las estimadas, no las reales. El total decía
@@ -55,7 +56,7 @@ cuadra con el acumulado del cronograma individual. En pareja salen unas
 |---|---|---|---|---|---|
 | **T0.1** ✅ | `Makefile`, `.gitignore` | Targets install/run/debug/clean/lint/lint-strict. El `.gitignore` **no** debe excluir el wheel | — | 1 h | Baja |
 | **T0.2** ✅ | `config.txt` | Configuración por defecto, con las tres claves opcionales comentadas | — | 30 min | Baja |
-| **T0.3** | — | Acordar flujo git: `main`, ramas de feature, PR revisado por el otro | — | 30 min | Baja |
+| **T0.3** ✅ | — | Acordar flujo git. Acordado: GitHub como única fuente de verdad, y la subida a vogsphere desde un ordenador del campus (ADR-031) | — | 30 min | Baja |
 | **A3** ✅ | `algorithms/backtracker.py` | DFS iterativo con pila explícita sobre las celdas libres | `maze.py` | 3 h | Media |
 | **A4** ✅ | `solver.py` | BFS con `deque`, reconstrucción del camino | `maze.py` | 2 h | Baja |
 | **A5a** ✅ | `validator.py` | Chequeos comunes: conectividad, bordes, bloques 3x3 | `maze.py` | 2 h | Media |
@@ -75,9 +76,9 @@ cuadra con el acumulado del cronograma individual. En pareja salen unas
 | **B8a** ✅ | `README.md` | Esqueleto con las 11 secciones obligatorias, vacías | — | 30 min | Baja |
 | **B8b** ✅ | `README.md` | Rellenarlo entero (ADR-029) | todo | 2 h 30 | Baja |
 | **B9** ✅ | `tests/` | pytest de los invariantes + `maze_analyzer.py` en ambos modos (`test_analyzer_modes.py`, ADR-029) | A7b, B5 | 3 h | Media |
-| **C1** | — | Integración y fricciones | todo | 3 h | — |
-| **C2** | — | `flake8` y `mypy --strict` a cero | C1 | 1 h | — |
-| **C3** | — | Casos límite (ver 6) | C1 | 3 h | — |
+| **C1** | — | Integración y fricciones. Clon limpio hecho (ADR-031); falta subir a vogsphere desde el campus | todo | 3 h | — |
+| **C2** ✅ | — | `flake8` y `mypy --strict` a cero, también en el clon limpio | C1 | 1 h | — |
+| **C3** ✅ | — | Casos límite (ver 5); cinco arreglos y `test_edge_cases.py` (ADR-030) | C1 | 3 h | — |
 | **C4** | — | Ensayo de defensa: cada uno explica los módulos del otro | C3 | 2 h | — |
 
 A7 estaba como una sola tarea que dependía de A3–A6, pero los dos
@@ -141,9 +142,10 @@ defecto genera.
 muestra y escribe un laberinto perfecto. **Este es el primer punto en
 el que hay algo entregable.** Etiquetadlo en git y retirad
 `tests/dump_maze.py` (ADR-018).
-*Estado:* `dump_maze.py` retirado y el programa funciona. Queda hacerlo
-a mano con `make run` y `PERFECT=True`, pasar el `maze.txt` por el
-analizador, y poner la etiqueta.
+*Estado:* ✅ cerrada. Con `make run` y `PERFECT=True` en el `config.txt`
+del repo, el analizador da *PERFECT maze*, 280 celdas alcanzables y 0
+bucles; con `SEED=42`, dos ejecuciones dan el mismo fichero. Etiqueta
+`v1.0.0-rc1`, anotada, en `2500735` (ADR-031).
 
 ### Bloque 3 · en paralelo · «modo Pac-Man»
 
@@ -156,10 +158,9 @@ analizador, y poner la etiqueta.
 pasar `maze_analyzer.py --max-dead-ends 0`. Objetivo: *0 real + 3
 enclosed*. Y aquí va el repaso innegociable de `maze.py` y
 `braiding.py` línea a línea, los dos juntos.
-*Estado:* el motor da *0 real + 3 enclosed* y *bonus-grade* en 20x15 con
-semilla 42 en el repo real, y el programa completo escribe ficheros que
-el analizador da por *bonus-grade*. Queda hacerlo a mano con `make run`
-y el repaso conjunto.
+*Estado:* ✅ cerrada a mano: con el `config.txt` del repo, `make run` y
+`--max-dead-ends 0`, *bonus-grade* con `0 real + 3 enclosed` y 31
+bucles. Queda el repaso conjunto, que va con C4.
 
 ### Bloque 4 · en paralelo · «bonus y pruebas»
 
@@ -178,17 +179,24 @@ estaba libre. B6, B8 y B9 se cerraron juntos el 31 de octubre.
 
 C1, C2, C3 y C4. Nada de esto se hace por separado.
 
-*Estimación revisada el 31 de octubre:*
+*Estado al cerrar C3 (31 de octubre):*
 
-| Tarea | Plan | Revisado | Qué queda de verdad |
+| Tarea | Plan | Real o revisado | Estado |
 |---|---|---|---|
-| S2 y S3 a mano + etiqueta | — | 30 min | `make run` en los dos modos con el `config.txt` del repo, el analizador y la etiqueta en git |
-| C1 integración | 3 h | 1 h | Clon limpio, push a la intra con el wheel (T0.3), decidir el cargador del analizador |
-| C2 lint a cero | 1 h | 15 min | Ya está a cero; confirmarlo en el clon limpio |
-| C3 casos límite | 3 h | 2 h – 3 h | La lista de §6 contra el programa real; si algo da traceback, el arreglo con su test |
-| C4 ensayo de defensa | 2 h | 3 h | Cada uno explica los módulos del otro, más el repaso conjunto de `maze.py` y `braiding.py` |
-| Cierre del README y los documentos | — | 30 min | *Planning and how it evolved* hasta la entrega |
-| **Total** | **9 h** | **~7 h 30** | entre 6 y 9 h según lo que aparezca en C3 |
+| S2 y S3 a mano + etiqueta | — | 30 min | ✅ `v1.0.0-rc1` |
+| C1 integración | 3 h | 1 h hecho + 30 min en el campus | Clon limpio ✅ (ADR-031); falta la subida a vogsphere y comprobarla allí |
+| C2 lint a cero | 1 h | 15 min | ✅ también en el clon limpio |
+| C3 casos límite | 3 h | 3 h | ✅ cinco arreglos y sus tests (ADR-030) |
+| C4 ensayo de defensa | 2 h | 3 h | Cada uno explica los módulos del otro, los arreglos de C3 incluidos, más el repaso conjunto de `maze.py` y `braiding.py` |
+| Cierre del README y los documentos | — | 30 min | ✅ *Planning and how it evolved* hasta el clon limpio |
+| **Total** | **9 h** | **~8 h 45** | quedan ~3 h 30 |
+
+En el campus, en este orden (ADR-031): clonar GitHub, añadir el remote
+de la intra y subir; clonar la intra en una carpeta vacía y comprobar
+el hash; en ese clon, `make install`, `make lint`, `make lint-strict`,
+`make test`, `make package` con `git status` vacío, `make
+package-test`, el caso de entrada no UTF-8 y el tiempo de 500x500.
+Después, en casa, la etiqueta `v1.0.0`.
 
 ---
 
@@ -217,7 +225,7 @@ aprieta.
 | 14 | B9 tests y analizador en ambos modos ✅ | 36 h 30 | red de seguridad ante regresiones |
 | 15 | A9 patrón con `n` impar ✅, A8 Kruskal ✅ | 40 h 30 | `PATTERN` de cualquier longitud y segundo bonus |
 | 16 | B8b README completo ✅ | 43 h | los 11 elementos obligatorios |
-| 17 | C1, C2, C3, C4 | 52 h | listo para defender |
+| 17 | C2 ✅, C3 ✅, C1 (falta vogsphere), C4 | 52 h | listo para defender |
 
 Dos cosas que parecen fuera de sitio y no lo están:
 
@@ -254,8 +262,21 @@ La lista, para no improvisarla el último día:
 - `Ctrl+C` y `Ctrl+D` en el menú
 - opción del menú inválida: letras, número fuera de rango, línea vacía
 
+Añadidos al recorrerla (ADR-030):
+
+- `WIDTH` o `HEIGHT` enormes: antes, `MemoryError`; ahora, máximo de 500
+- bytes que no son UTF-8 en el menú: antes, `UnicodeDecodeError` con un
+  locale real
+- el aviso del "42": salía, pero el borrado de pantalla del menú lo
+  hacía desaparecer
+- `ENTRY=(0,0)`: un mensaje que citaba medio token
+- fichero de configuración guardado con BOM
+- entrada sobre el "42", algoritmo desconocido, `OUTPUT_FILE` que es un
+  directorio, clave mal escrita
+
 Ninguno de estos puede terminar en traceback. La hoja pone un 0 ante
-cualquier terminación inesperada.
+cualquier terminación inesperada. ✅ Todos cubiertos por
+`tests/test_edge_cases.py`, que los ejecuta a través de `main()`.
 
 ---
 
@@ -273,3 +294,7 @@ cualquier terminación inesperada.
   después de B9 a propósito, y se adelantó porque B9 es de Lucas y el
   motor estaba libre. El riesgo cambia de forma: con los dos bonus
   hechos, lo que puede poner un 0 es el wheel o el README, no el motor.
+- **La subida a vogsphere solo se puede hacer en el campus.** Cualquier
+  arreglo de última hora se hace en casa, va a GitHub, y exige otra
+  visita al campus para subirlo. Conviene no dejar la subida para el
+  último día (ADR-031).

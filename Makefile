@@ -69,7 +69,17 @@ test: $(STAMP)
 # first: setuptools reuses it, and a module deleted since the last
 # build would end up in the new wheel.  The old wheel goes too, so a
 # version bump never leaves two of them.
+#
+# The wheel is built from the files on disk, not from the repository:
+# a packaged file with CRLF line endings would change the wheel
+# without changing the repository (ADR-031).  Refuse to build.
 package: $(STAMP)
+	@crlf=$$(grep -rlI "$$(printf '\r')" mazegen LICENSE.md pyproject.toml); \
+	if [ -n "$$crlf" ]; then \
+		echo "package: CRLF line endings in:" $$crlf >&2; \
+		printf '%s\n' "fix each file with: sed -i 's/\r$$//' FILE" >&2; \
+		exit 1; \
+	fi
 	rm -rf build *.egg-info mazegen-*.whl
 	SOURCE_DATE_EPOCH=$(EPOCH) $(BIN)/python -m build --wheel --outdir .
 	rm -rf build *.egg-info

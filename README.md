@@ -415,6 +415,17 @@ What changed on the way:
 - Packaging took more than expected: the documentation has to ship
   inside the package, the installed package has to be tested outside
   the repository, and the wheel had to become reproducible.
+- The final review of edge cases, run against the real program, found
+  five problems the tests did not cover: a huge size exhausted the
+  memory, a byte that is not UTF-8 in the menu crashed it, the warning
+  for a pattern that does not fit was erased by the first screen clear,
+  and two error messages were confusing.  Each fix came with its test,
+  and the size limit was measured before choosing it.
+- Building the project from a fresh clone, as the evaluator will, showed
+  that the wheel had been built from a licence file with Windows line
+  endings: the repository stores them as Unix line endings, but the
+  wheel is built from the files on disk.  We rebuilt it, and packaging
+  now refuses to run on such files.
 
 ### What worked well and what could be improved
 
@@ -426,7 +437,7 @@ Worked well:
 - **Measuring before deciding.**  Each design decision is recorded with
   its alternatives and the numbers behind it, in `docs/DECISIONS.md`.
   The analyzer of the subject served as an independent referee, and
-  the test suite (775 tests) checks every rule against code written
+  the test suite (845 tests) checks every rule against code written
   separately from the code it checks.
 
 Could be improved:
@@ -438,7 +449,8 @@ Could be improved:
 
 ### Tools
 
-- **Git**, with a working repository on **GitHub**.
+- **Git**, with a working repository on **GitHub**; the delivery is
+  pushed to the 42 repository from a campus computer.
 - **Python tooling**: `venv`, `flake8`, `mypy`, `pytest`, `build` and
   `setuptools`, with exact versions pinned in `requirements-dev.txt`.
 - **make**, for every common task.
