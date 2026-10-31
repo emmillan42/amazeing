@@ -19,7 +19,11 @@ class Menu:
     """Draw a maze and let the user act on it."""
 
     def __init__(
-        self, generator: MazeGenerator, config: Config
+        self,
+        generator: MazeGenerator,
+        config: Config,
+        *,
+        notice: str = "",
     ) -> None:
         """Store the generator and start on its current maze.
 
@@ -28,6 +32,10 @@ class Menu:
                 once: the menu starts on the maze it holds.
             config: The configuration, needed to save the maze on
                 display.
+            notice: A line shown on every screen, under the maze.  The
+                entry point uses it for the "42 does not fit" warning:
+                printed only before the menu, the first screen clear
+                would erase it (ADR-030).
 
         Raises:
             GenerationError: If the generator has not generated yet.
@@ -37,6 +45,7 @@ class Menu:
         self._maze = generator.maze
         self._show_path = False
         self._palette = 0
+        self._notice = notice
         self._message = ""
         self._actions: dict[str, Callable[[], None]] = {
             "1": self._regenerate,
@@ -49,7 +58,9 @@ class Menu:
         """Draw the maze, then loop until the user quits.
 
         Invalid choices, ``Ctrl+C`` and the end of the input stream are
-        caught, so the program never ends on a traceback.
+        caught, so the program never ends on a traceback.  Bytes that
+        are not UTF-8 count as an invalid choice: with a UTF-8 locale
+        Python decodes the keyboard strictly, and ``input`` raises.
         """
         while True:
             print(self._frame())
@@ -58,6 +69,9 @@ class Menu:
             except (EOFError, KeyboardInterrupt):
                 print()
                 return
+            except UnicodeDecodeError:
+                self._message = "unreadable input (not UTF-8), pick 1 to 5"
+                continue
             if choice == QUIT:
                 return
             action = self._actions.get(choice)
@@ -68,13 +82,19 @@ class Menu:
                 action()
 
     def _frame(self) -> str:
-        """Return the screen: clear, maze, last message and options."""
+        """Return the screen: clear, maze, notice, message and options.
+
+        The notice stays on every screen; the message only lasts until
+        the next choice.  Without either, the layout is the same as
+        before the notice existed: one empty line under the maze.
+        """
         palette = PALETTES[self._palette]
         shown = "shown" if self._show_path else "hidden"
+        status = [line for line in (self._notice, self._message) if line]
         return (
             CLEAR
-            + render(self._maze, self._show_path, palette) + "\n"
-            + (f"\n{self._message}\n" if self._message else "\n")
+            + render(self._maze, self._show_path, palette) + "\n\n"
+            + "".join(f"{line}\n" for line in status)
             + "=== A-Maze-ing ===\n"
             + "1. Re-generate a new maze\n"
             + f"2. Show / hide the shortest path (now {shown})\n"

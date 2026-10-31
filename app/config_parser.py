@@ -10,12 +10,15 @@ Grammar:
 * optional keys: ``SEED`` (integer), ``ALGORITHM`` (name of a carving
   algorithm), ``PATTERN`` (text to draw, empty to draw nothing);
 * coordinates are written ``x,y``;
-* booleans accept ``True`` and ``False`` in any case.
+* booleans accept ``True`` and ``False`` in any case;
+* a UTF-8 byte order mark at the start of the file is ignored.
 
-The parser checks the syntax and the type of every value.  Whether the
-values make a possible maze (size, entry and exit inside the grid, an
-existing algorithm) is checked by :class:`mazegen.MazeGenerator`, so
-each rule lives in a single place.
+The parser checks the syntax and the type of every value, plus one
+limit of this program: ``WIDTH`` and ``HEIGHT`` cannot exceed
+:data:`MAX_SIDE` (ADR-030).  Whether the values make a possible maze
+(minimum size, entry and exit inside the grid, an existing algorithm)
+is checked by :class:`mazegen.MazeGenerator`, so each rule lives in a
+single place.
 """
 from __future__ import annotations
 
@@ -38,6 +41,15 @@ MANDATORY_KEYS: tuple[str, ...] = (
 OPTIONAL_KEYS: tuple[str, ...] = ("SEED", "ALGORITHM", "PATTERN")
 
 DEFAULT_ALGORITHM: str = "backtracker"
+
+MAX_SIDE: int = 500
+"""Largest ``WIDTH`` or ``HEIGHT`` this program accepts (ADR-030).
+
+A budget of the application, not a rule of what a maze is: beyond it
+generating takes too long, and far beyond it the process runs out of
+memory before any of our checks can answer.  The library itself has no
+upper limit.
+"""
 
 
 @dataclass(frozen=True)
@@ -74,7 +86,10 @@ def _read_lines(path: str | Path) -> list[str]:
         ConfigError: If the file is missing, unreadable or not text.
     """
     try:
-        with open(path, encoding="utf-8") as config_file:
+        # "utf-8-sig" also reads plain UTF-8; it only drops a leading
+        # byte order mark, which some editors add on save and which
+        # would otherwise turn the first line into garbage.
+        with open(path, encoding="utf-8-sig") as config_file:
             return config_file.readlines()
     except OSError as error:
         raise ConfigError(
@@ -147,8 +162,8 @@ def parse_config(path: str | Path) -> Config:
     seed = pairs.get("SEED", "")
     pattern = pairs.get("PATTERN", PATTERN)
     return Config(
-        width=parse_int(pairs["WIDTH"], "WIDTH"),
-        height=parse_int(pairs["HEIGHT"], "HEIGHT"),
+        width=parse_side(pairs["WIDTH"], "WIDTH"),
+        height=parse_side(pairs["HEIGHT"], "HEIGHT"),
         entry=parse_coords(pairs["ENTRY"], "ENTRY"),
         exit=parse_coords(pairs["EXIT"], "EXIT"),
         output_file=pairs["OUTPUT_FILE"],
@@ -178,6 +193,32 @@ def parse_int(raw: str, key: str) -> int:
         raise ConfigError(
             f"{key} must be an integer, got {raw!r}"
         ) from error
+
+
+def parse_side(raw: str, key: str) -> int:
+    """Parse ``WIDTH`` or ``HEIGHT`` and apply the upper limit.
+
+    Only the upper limit is checked here, because it is a budget of
+    this program.  The lower limit is a rule of the maze itself, so it
+    stays in :class:`mazegen.MazeGenerator` with its own message.
+
+    Args:
+        raw: The value as written in the file.
+        key: The key it belongs to, for the error message.
+
+    Returns:
+        The integer, at most :data:`MAX_SIDE`.
+
+    Raises:
+        ConfigError: If ``raw`` is not an integer or exceeds
+            :data:`MAX_SIDE`.
+    """
+    value = parse_int(raw, key)
+    if value > MAX_SIDE:
+        raise ConfigError(
+            f"{key} must be at most {MAX_SIDE}, got {value}"
+        )
+    return value
 
 
 def parse_bool(raw: str, key: str) -> bool:
@@ -215,10 +256,14 @@ def parse_coords(raw: str, key: str) -> Cell:
         ConfigError: If ``raw`` is not two integers separated by a
             comma.
     """
-    parts = raw.split(",")
-    if len(parts) != 2:
+    # One message for every malformed tuple: "a,b" and "(0,0)" are the
+    # same mistake as "3" for the user.  int() already ignores the
+    # spaces around each number, and unpacking a list of the wrong
+    # length raises ValueError too, so one except covers every case.
+    try:
+        x_raw, y_raw = raw.split(",")
+        return (int(x_raw), int(y_raw))
+    except ValueError as error:
         raise ConfigError(
             f"{key} must be two integers written x,y, got {raw!r}"
-        )
-    return (parse_int(parts[0].strip(), key),
-            parse_int(parts[1].strip(), key))
+        ) from error

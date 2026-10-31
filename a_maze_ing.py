@@ -32,21 +32,26 @@ def build_generator(config: Config) -> MazeGenerator:
     )
 
 
-def warn_if_pattern_skipped(
+def pattern_warning(
     generator: MazeGenerator, config: Config
-) -> None:
-    """Warn on the console when the maze was too small for the pattern.
+) -> str | None:
+    """Return the warning for a pattern that did not fit, if any.
 
     The text comes from the configuration, not from the default: with
     ``PATTERN=4`` the warning must talk about "4" and its own minimum.
+    Building the text is kept apart from showing it, because it is
+    shown twice: on ``stderr`` and on every screen of the menu.
+
+    Returns:
+        The warning, or ``None`` when the pattern was drawn or there
+        is no pattern.
     """
     if not generator.pattern_skipped or config.pattern is None:
-        return
+        return None
     min_width, min_height = minimum_grid(config.pattern)
-    print(
+    return (
         f"warning: maze too small for the {config.pattern!r} pattern, "
-        f"it needs at least {min_width}x{min_height}",
-        file=sys.stderr,
+        f"it needs at least {min_width}x{min_height}"
     )
 
 
@@ -66,9 +71,14 @@ def main(argv: list[str]) -> int:
         config = parse_config(argv[1])
         generator = build_generator(config)
         maze = generator.generate()
-        warn_if_pattern_skipped(generator, config)
+        warning = pattern_warning(generator, config)
+        if warning is not None:
+            # Seen if the program stops before the menu (an output file
+            # that cannot be written); the menu repeats it, because its
+            # first screen clear erases this line (ADR-030).
+            print(warning, file=sys.stderr)
         write_maze(config.output_file, maze)
-        Menu(generator, config).run()
+        Menu(generator, config, notice=warning or "").run()
     except MazeError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1

@@ -37,7 +37,7 @@ def _write(tmp_path: Path, text: str) -> Path:
     (VALID.replace("PERFECT=False", "PERFECT=maybe"), "True or False"),
     (VALID.replace("ENTRY=0,0", "ENTRY=0;0"), "ENTRY must be two"),
     (VALID.replace("EXIT=19,14", "EXIT=19,14,3"), "EXIT must be two"),
-    (VALID.replace("EXIT=19,14", "EXIT=19,x"), "EXIT must be an integer"),
+    (VALID.replace("EXIT=19,14", "EXIT=19,x"), "EXIT must be two integers"),
 ])
 def test_evaluation_sheet_errors(
     tmp_path: Path, text: str, message: str

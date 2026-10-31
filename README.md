@@ -61,8 +61,8 @@ the wall colours, save the current maze to the output file, and quit.
 
 **Errors.**  A wrong configuration never ends in a traceback: the
 program prints `error: ...` with the reason and exits with code 1.  If
-the grid is too small for the pattern, it prints a warning, generates
-the maze without the pattern, and goes on.
+the grid is too small for the pattern, the maze is generated without
+it and a warning stays on screen, under the maze.
 
 **Output file.**  One hexadecimal digit per cell and one line per row
 (bit 0 north, 1 east, 2 south, 3 west; a set bit is a closed wall),
@@ -147,8 +147,8 @@ values (`True`, `true`, `TRUE`).
 
 | Key | Mandatory | Format | Default | Meaning |
 |---|---|---|---|---|
-| `WIDTH` | yes | integer | | Number of columns, at least 3 |
-| `HEIGHT` | yes | integer | | Number of rows, at least 3 |
+| `WIDTH` | yes | integer | | Number of columns, from 3 to 500 |
+| `HEIGHT` | yes | integer | | Number of rows, from 3 to 500 |
 | `ENTRY` | yes | `x,y` | | Entry cell; `x` is the column, `y` the row, `0,0` the north-west corner |
 | `EXIT` | yes | `x,y` | | Exit cell, inside the grid and different from the entry |
 | `OUTPUT_FILE` | yes | file name | | Where the maze is written, kept as written |
@@ -156,6 +156,12 @@ values (`True`, `true`, `TRUE`).
 | `SEED` | no | integer | random | Same seed, same mazes; empty means random |
 | `ALGORITHM` | no | `backtracker` / `kruskal` | `backtracker` | Carving algorithm, see below |
 | `PATTERN` | no | text | `42` | Characters drawn with closed cells (`4` and `2` have glyphs); empty draws nothing |
+
+`WIDTH` and `HEIGHT` go from 3 to 500.  The minimum belongs to the
+generator: a maze needs at least 3 cells per side.  The maximum belongs
+to this program: a 500x500 playable board already takes about 9 seconds
+to generate, and a much larger grid would exhaust the memory before
+anything could be checked.
 
 The default `config.txt`:
 
@@ -178,13 +184,14 @@ The optional keys are commented out with their default values, so
 uncommenting one as is changes nothing; uncommenting `SEED` makes every
 run give the same maze.
 
-The parser checks syntax and types; the generator checks what only
-makes sense with the whole configuration.  Each of these gives a clear
-error with the line number when there is one:
+The parser checks syntax, types and the 500 limit; the generator
+checks what only makes sense with the whole configuration.  Each of
+these gives a clear error with the line number when there is one:
 
 - a missing mandatory key, an unknown key (a typo such as `SEDD=4` is
   not ignored), or a key given twice;
 - a line without `=`;
+- a width or height below 3 or above 500;
 - letters where a number is expected, or a boolean other than
   `True` or `False`;
 - coordinates that are not `x,y`, or fall outside the grid, or an entry
@@ -193,10 +200,12 @@ error with the line number when there is one:
 - a configuration file that does not exist or cannot be read, and an
   output file that cannot be written.
 
-The pattern needs room: `42` needs at least 9x7.  A text with an odd
-number of characters needs `4n + 4` columns and is drawn two columns
-east of the centre, so that the centre column stays a corridor (the
-player starts there in a Pac-Man game).
+The pattern needs room: `42` needs at least 9x7.  On a smaller grid
+the maze is generated without it, and a warning stays under the maze on
+every screen of the menu.  A text with an odd number of characters
+needs `4n + 4` columns and is drawn two columns east of the centre, so
+that the centre column stays a corridor (the player starts there in a
+Pac-Man game).
 
 ## Maze generation algorithm
 
