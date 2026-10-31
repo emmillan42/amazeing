@@ -1,9 +1,9 @@
-"""Tests for the pipeline of :class:`MazeGenerator` (A7a).
+"""Tests for the pipeline of :class:`MazeGenerator` (A7a, A7b, A8).
 
 What matters here is not the maze itself, the other test files cover
 it, but when each error shows up and what it says: a wrong parameter
-must fail in the constructor, a missing piece must fail with a message
-instead of a traceback, and a bug must be reproducible from its
+must fail in the constructor, and a bug, in whichever step, must fail
+with a message instead of a traceback and be reproducible from that
 message alone.
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ import mazegen.generator as generator_module
 from mazegen.algorithms.base import Algorithm
 from mazegen.errors import GenerationError, InvalidGeometryError, MazeError
 from mazegen.generator import MIN_SIDE, MazeGenerator
-from mazegen.maze import Maze
+from mazegen.maze import Direction, Maze
 from mazegen.validator import count_loops
 
 
@@ -27,12 +27,12 @@ class LazyAlgorithm(Algorithm):
         """Leave every wall closed."""
 
 
-class StubAlgorithm(Algorithm):
-    """An algorithm that is still a stub."""
+class BrokenAlgorithm(Algorithm):
+    """A buggy algorithm that tries to open the outer border."""
 
     def carve(self, maze: Maze, rng: random.Random) -> None:
-        """Do what every stub of the project does."""
-        raise NotImplementedError
+        """Make :meth:`Maze.open_wall` raise, as a real bug would."""
+        maze.open_wall(0, 0, Direction.NORTH)
 
 
 # ----------------------------------------------------------------------
@@ -85,15 +85,25 @@ def test_maze_before_generate_is_an_error() -> None:
 
 
 # ----------------------------------------------------------------------
-# Missing pieces: an error, never a traceback
+# Failing steps: an error, never a traceback
 # ----------------------------------------------------------------------
 
-def test_stub_algorithm_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_buggy_algorithm_names_how_to_rebuild_it(
+    monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Carving gets the same treatment as braiding and the validator:
+    # before A8 this error left the generator bare, with no seed.
     monkeypatch.setattr(
-        generator_module, "get_algorithm", lambda name: StubAlgorithm()
+        generator_module, "get_algorithm", lambda name: BrokenAlgorithm()
     )
-    with pytest.raises(GenerationError, match="not implemented"):
-        MazeGenerator(20, 15, perfect=True).generate()
+    generator = MazeGenerator(20, 15, perfect=True, seed=7)
+    with pytest.raises(GenerationError) as caught:
+        generator.generate()
+    message = str(caught.value)
+    assert message.startswith("internal error")
+    assert "outer border" in message
+    for part in ["20x15", "perfect=True", "seed=7", "call #1"]:
+        assert part in message
 
 
 def test_mode_reaches_the_validator(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -118,7 +128,7 @@ def test_every_failure_is_a_maze_error(
     # a_maze_ing.py only catches MazeError: anything else would be a
     # traceback in front of the evaluator.
     monkeypatch.setattr(
-        generator_module, "get_algorithm", lambda name: StubAlgorithm()
+        generator_module, "get_algorithm", lambda name: BrokenAlgorithm()
     )
     with pytest.raises(MazeError):
         MazeGenerator(20, 15, perfect=True).generate()

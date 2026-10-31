@@ -148,10 +148,9 @@ class MazeGenerator:
             The freshly generated maze, with its solution stored.
 
         Raises:
-            GenerationError: If the carving algorithm is not
-                implemented yet, or if braiding or the validator fail.
-                In the second case it is a bug, and the message carries
-                what is needed to reproduce it.
+            GenerationError: If carving, braiding or the validator
+                fail.  It is always a bug, and the message carries what
+                is needed to reproduce it.
         """
         self._generated += 1
         maze = self._blank_maze()
@@ -187,9 +186,11 @@ class MazeGenerator:
     def _check_reserved_cells(self, maze: Maze) -> None:
         """Refuse an entry or an exit sitting on the pattern.
 
-        The corners and the centre of a playable board are checked too,
-        but they can never be blocked: the pattern is centred with a
-        margin, and the centre is defined as the nearest free cell.
+        The corners of a playable board are checked too, but they can
+        never be blocked: the pattern always keeps a margin to the
+        border.  The centre is not checked: the pattern leaves its
+        column free (ADR-025), and it is defined as the nearest free
+        cell anyway.
 
         Raises:
             InvalidGeometryError: If a reserved cell is blocked.
@@ -209,15 +210,19 @@ class MazeGenerator:
     def _carve(self, maze: Maze) -> None:
         """Run the carving algorithm.
 
+        Every parameter was checked by the constructor, so a failure
+        here can only be a bug of the algorithm, typically a wall it
+        should not open.  It is reported like a failure of braiding or
+        of the validator, with what rebuilds the same maze.
+
         Raises:
-            GenerationError: If the algorithm is still a stub.
+            GenerationError: If the algorithm breaks an invariant of
+                :class:`Maze`.
         """
         try:
             get_algorithm(self._algorithm).carve(maze, self._rng)
-        except NotImplementedError as error:
-            raise GenerationError(
-                f"algorithm {self._algorithm!r} is not implemented yet"
-            ) from error
+        except MazeError as error:
+            raise self._internal_error(error) from error
 
     def _braid(self, maze: Maze) -> None:
         """Turn the spanning tree into a playable board.
