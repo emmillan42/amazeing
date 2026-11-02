@@ -435,7 +435,8 @@ Worked well:
   and when something did not fit, the question was "who breaks the
   contract", not "whose code is right".
 - **Measuring before deciding.**  Each design decision is recorded with
-  its alternatives and the numbers behind it, in `docs/DECISIONS.md`.
+  its alternatives and the numbers behind it, in a decision log kept
+  outside this repository; the `ADR-NNN` notes in the code refer to it.
   The analyzer of the subject served as an independent referee, and
   the test suite (845 tests) checks every rule against code written
   separately from the code it checks.
